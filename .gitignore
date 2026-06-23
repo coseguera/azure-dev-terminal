@@ -1,0 +1,33 @@
+# --- Secrets & host-specific overlays (NEVER commit) ---
+# Network details, source IPs/CIDRs, and credentials stay local. The filled
+# cloud-init custom-data may hold host specifics; keep only the example in git.
+*.local
+*.local.*
+secrets/
+overlays/secret*
+overlays/*.local
+
+# Filled cloud-init custom-data (may hold host/user specifics); keep the example.
+cloud-init/custom-data
+!cloud-init/custom-data.example
+
+# Azure deploy outputs / connection details (may hold IPs, resource ids)
+connect.env
+*.connect.local
+azure.env
+
+# SSH keys / generated identities
+id_*
+*.pem
+*.key
+known_hosts
+
+# Generic env / credential files
+.env
+*.env
+!*.example.env
+
+# --- Editor / OS noise ---
+.DS_Store
+*.swp
+*~
