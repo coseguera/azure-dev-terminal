@@ -9,18 +9,18 @@
 
 ## 0. Current status
 
-**Stage: building.** The two foundational artifacts exist and are validated (not yet
-run on a live VM): the platform-agnostic **`core-build/`** layer (`install.sh` + `files/`)
-and the thin **`cloud-init/azure/custom-data.example`** overlay that runs the inlined core
-build. Branch: `core-build-foundation`. Remaining build work: provisioning script
-(assembles/inlines core-build + creates the Azure resources), cross-platform connect +
-sync helpers, client/ADR/agent docs, and live-VM feasibility validation.
+**Stage: building.** Foundational artifacts exist and are validated (not yet run on a
+live VM): the platform-agnostic **`core-build/`** layer (`install.sh` + `files/`), the
+thin **`cloud-init/azure/custom-data.example`** overlay that runs the inlined core build,
+the **`provision.sh`** assembler + `vm.lean.conf`/`vm.heavy.conf` profiles, and the
+cross-platform **connect helpers** (`connect.sh` + `connect.ps1` over shared
+`lib/jit.sh` + `lib/jit.ps1`). Branch: `core-build-foundation`. Remaining build work:
+cross-platform **sync** helper, client/ADR/agent docs, and live-VM feasibility validation.
 
-**Next action:** write the cross-platform connect helpers (**`connect.sh`** + **`connect.ps1`**):
-start-if-deallocated, request JIT for the current source (or a per-network CIDR profile),
-then `az ssh vm` into a shell (no VNC forward). Then validate Entra ID SSH + JIT +
-LazyVim + Copilot CLI end to end on a live VM (`feas-access`, `feas-jit`,
-`feas-customdata`, `feas-keyring`).
+**Next action:** write the cross-platform **sync** helpers (**`sync.sh`** + **`sync.ps1`**),
+reusing the same `lib/jit` JIT/CIDR logic: rsync push/pull of files AND directories over
+Entra ID SSH, dev-user ownership. Then validate Entra ID SSH + JIT + LazyVim + Copilot
+CLI end to end on a live VM (`feas-access`, `feas-jit`, `feas-customdata`, `feas-keyring`).
 
 ## 1. Problem statement & goals
 
