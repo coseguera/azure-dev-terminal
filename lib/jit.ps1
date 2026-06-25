@@ -11,6 +11,9 @@
 #   Resolve-AdtSource [profile]  - return @{ Src; Prefixes } (detected /32 or profile)
 #   Start-AdtVm $ctx             - start the VM if it is deallocated
 #   Request-AdtJit $ctx $src [d] - request JIT access (port 22) for the source(s)
+#   Get-AdtVmIp $ctx             - return the VM's public IP
+#   Test-AdtPortOpen $ip         - $true if port 22 already reachable (JIT live)
+#   Invoke-AdtEnsureAccess $ctx  - reach port 22, requesting JIT only if not already open
 # =============================================================================
 
 Set-StrictMode -Version Latest
@@ -81,6 +84,43 @@ function Start-AdtVm {
   param([pscustomobject]$Ctx)
   Write-AdtLog "Ensuring VM is running..."
   az vm start -g $Ctx.Rg -n $Ctx.Vm -o none 2>$null | Out-Null
+}
+
+# Echo the VM's public IP (empty if none / VM not running). The -d lookup is slow.
+function Get-AdtVmIp {
+  param([pscustomobject]$Ctx)
+  $ip = az vm show -d -g $Ctx.Rg -n $Ctx.Vm --query publicIps -o tsv 2>$null
+  if ($ip) { return $ip.Trim() } else { return '' }
+}
+
+# Return $true if TCP port 22 is already reachable on the given IP (i.e. JIT is live).
+# Uses TcpClient so it works on Windows, macOS, and Linux pwsh alike.
+function Test-AdtPortOpen {
+  param([string]$Ip, [int]$TimeoutMs = 5000)
+  if ([string]::IsNullOrWhiteSpace($Ip)) { return $false }
+  $client = [System.Net.Sockets.TcpClient]::new()
+  try {
+    $task = $client.ConnectAsync($Ip, 22)
+    if ($task.Wait($TimeoutMs) -and $client.Connected) { return $true }
+    return $false
+  } catch {
+    return $false
+  } finally {
+    $client.Dispose()
+  }
+}
+
+# Make sure port 22 is reachable, requesting JIT only if it is not already open.
+# Shared by connect and sync so the "reuse a live JIT window" logic lives in one place.
+function Invoke-AdtEnsureAccess {
+  param([pscustomobject]$Ctx, [string]$NetworkProfile = '', [string]$Duration = 'PT3H', [string]$Dir = '.')
+  if (Test-AdtPortOpen -Ip (Get-AdtVmIp -Ctx $Ctx)) {
+    Write-AdtLog "Port 22 already open (reusing existing JIT)."
+    return
+  }
+  $src = Resolve-AdtSource -Dir $Dir -NetworkProfile $NetworkProfile
+  Start-AdtVm -Ctx $Ctx
+  Request-AdtJit -Ctx $Ctx -Source $src -Duration $Duration
 }
 
 # Request JIT access for port 22 from the given source(s). $Duration is ISO 8601.

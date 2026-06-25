@@ -29,9 +29,7 @@ PROFILE="${1:-}"
 
 adt_require_az
 adt_load_config
-adt_resolve_src "$PROFILE"
-adt_start_vm
-adt_request_jit "${JIT_DURATION:-PT3H}"
+adt_ensure_access "$PROFILE" "${JIT_DURATION:-PT3H}"
 
 adt_log "Opening Entra ID SSH session to $VM ..."
 exec az ssh vm -g "$RG" -n "$VM"

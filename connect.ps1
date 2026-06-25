@@ -31,9 +31,7 @@ $AdtDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Assert-AdtAz
 $ctx = Get-AdtConfig -Dir $AdtDir
-$src = Resolve-AdtSource -Dir $AdtDir -NetworkProfile $NetworkProfile
-Start-AdtVm -Ctx $ctx
-Request-AdtJit -Ctx $ctx -Source $src -Duration $JitDuration
+Invoke-AdtEnsureAccess -Ctx $ctx -NetworkProfile $NetworkProfile -Duration $JitDuration -Dir $AdtDir
 
 Write-AdtLog "Opening Entra ID SSH session to $($ctx.Vm) ..."
 az ssh vm -g $ctx.Rg -n $ctx.Vm

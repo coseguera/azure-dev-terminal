@@ -11,6 +11,9 @@
 #   adt_resolve_src [profile] - set SRC + PREFIX_JSON (detected /32 or CIDR profile)
 #   adt_start_vm              - start the VM if it is deallocated
 #   adt_request_jit [dur]     - request JIT access (port 22) for SRC
+#   adt_vm_ip                 - echo the VM's public IP
+#   adt_port_open <ip>        - 0 if port 22 already reachable (JIT live)
+#   adt_ensure_access [p] [d] - reach port 22, requesting JIT only if not already open
 #
 # These functions print progress to stderr so callers can still capture stdout.
 # =============================================================================
@@ -76,6 +79,33 @@ adt_resolve_src() {
 adt_start_vm() {
   adt_log "Ensuring VM is running..."
   az vm start -g "$RG" -n "$VM" -o none || true
+}
+
+# Echo the VM's public IP (empty if none / VM not running). The -d lookup is slow.
+adt_vm_ip() {
+  az vm show -d -g "$RG" -n "$VM" --query publicIps -o tsv 2>/dev/null || true
+}
+
+# Return 0 if TCP port 22 is already reachable on the given IP (i.e. JIT is live).
+# Uses bash's /dev/tcp so no nc dependency. A closed/filtered port blocks until timeout.
+adt_port_open() {
+  local ip="$1"
+  [ -n "$ip" ] || return 1
+  timeout 5 bash -c "exec 3<>/dev/tcp/$ip/22" 2>/dev/null
+}
+
+# Make sure port 22 is reachable, requesting JIT only if it is not already open.
+# Args: 1 = network profile (optional), 2 = JIT duration (ISO 8601, default PT3H).
+# Shared by connect and sync so the "reuse a live JIT window" logic lives in one place.
+adt_ensure_access() {
+  local profile="${1:-}" duration="${2:-PT3H}"
+  if adt_port_open "$(adt_vm_ip)"; then
+    adt_log "Port 22 already open (reusing existing JIT)."
+    return 0
+  fi
+  adt_resolve_src "$profile"
+  adt_start_vm
+  adt_request_jit "$duration"
 }
 
 # Request JIT access for port 22 from SRC. Arg 1 = duration (ISO 8601, default PT3H).
