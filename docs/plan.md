@@ -9,18 +9,18 @@
 
 ## 0. Current status
 
-**Stage: design / not yet built.** Nothing is provisioned yet. The core build layer
-this plan reuses (LazyVim, Tokyo Night, Nerd Font glyphs, Copilot CLI via nvm + Node,
-encrypted token vault, `localuser` account) is already proven on a Pi via a single
-cloud-init config; the work here is to port that core build to an Azure
-`--custom-data` config and pair it with an SSH-only access layer built on **Entra ID
-SSH + Just-in-Time (JIT) network access**, dropping all physical-host and GUI
-machinery. The connection flow must be **cross-platform** (macOS, Linux, Windows).
+**Stage: building.** The two foundational artifacts exist and are validated (not yet
+run on a live VM): the platform-agnostic **`core-build/`** layer (`install.sh` + `files/`)
+and the thin **`cloud-init/azure/custom-data.example`** overlay that runs the inlined core
+build. Branch: `core-build-foundation`. Remaining build work: provisioning script
+(assembles/inlines core-build + creates the Azure resources), cross-platform connect +
+sync helpers, client/ADR/agent docs, and live-VM feasibility validation.
 
-**Next action:** stand up a first VM from a minimal core-build `--custom-data`, reach
-it over Entra ID SSH with a JIT-opened port 22, and confirm LazyVim + Copilot CLI + a
-headless token vault work, with glyphs/theme rendering from the client terminal
-(`feas-customdata`, `feas-access`, `feas-keyring`).
+**Next action:** write the cross-platform connect helpers (**`connect.sh`** + **`connect.ps1`**):
+start-if-deallocated, request JIT for the current source (or a per-network CIDR profile),
+then `az ssh vm` into a shell (no VNC forward). Then validate Entra ID SSH + JIT +
+LazyVim + Copilot CLI end to end on a live VM (`feas-access`, `feas-jit`,
+`feas-customdata`, `feas-keyring`).
 
 ## 1. Problem statement & goals
 
@@ -247,8 +247,8 @@ Defender for Servers P2 ~$15 + Standard public IP ~$3.7), comfortably under the
 Burstable suits the workload: terminal Copilot CLI + LazyVim is near-idle most of the
 time (banking CPU credits) with short bursts (LSP indexing, builds, `:Lazy! sync`).
 The Pi's sluggishness was SD-card I/O + ARM, not CPU/RAM, so a small x86 VM with SSD
-feels snappy. Keep the **lean/beefy two-profile pattern**: lean is the default above; a
-beefy dedicated D-series is available for sustained heavy compiles (see 3k for the
+feels snappy. Keep the **lean/heavy two-profile pattern**: lean is the default above; a
+heavy dedicated D-series is available for sustained heavy compiles (see 3k for the
 cost/auto-shutdown coupling).
 
 ### 3k. Sizing x burstability x auto-shutdown
@@ -263,7 +263,7 @@ Cost control is governed by one coupled rule:
 - The trigger to leave burstable is **sustained high-CPU work** that exhausts credits and
   throttles to baseline -- which points to a **dedicated D-series**.
 - A dedicated 4-core (e.g. `D4as_v5`, ~$151/mo at 24/7) **breaks the $150 budget if
-  always-on**, so a beefy profile must ship **with guest-side auto-shutdown** to claw the
+  always-on**, so a heavy profile must ship **with guest-side auto-shutdown** to claw the
   cost back (dedicated SKUs have no burst credits to lose, so no penalty).
 - **Rule:** *Burstable -> always-on. Dedicated (sustained loads) -> auto-shutdown.*
 
@@ -315,8 +315,8 @@ Cost control is governed by one coupled rule:
   of the core build, which a future `local-dev-machine` rewrite can consume from here
   (submodule / include / copy) without dragging Azure bits along.
 - **VM baseline (resolved).** `Standard_B2as_v2`, 64 GB Standard SSD, Ubuntu LTS,
-  always-on (~$87/mo, under the $150 budget). Lean/beefy two-profile pattern kept; the
-  beefy dedicated profile pairs with auto-shutdown (see 3k).
+  always-on (~$87/mo, under the $150 budget). Lean/heavy two-profile pattern kept; the
+  heavy dedicated profile pairs with auto-shutdown (see 3k).
 - **JIT duration & policy.** Session length (within policy max) and whether to script
   re-requests for long sessions.
 - **Helper parity.** How to keep the `bash` and PowerShell helpers behaviorally
@@ -366,7 +366,7 @@ Cost control is governed by one coupled rule:
 - [ ] **feas-glyphs** -- Confirm Nerd Font glyphs + Tokyo Night render from the client
       terminal over SSH on each OS (document client setup).
 - [ ] **feas-baseline** -- *(resolved)* `Standard_B2as_v2`, 64 GB Standard SSD, Ubuntu
-      LTS, always-on (~$87/mo, under $150 budget). Lean/beefy profile pattern kept.
+      LTS, always-on (~$87/mo, under $150 budget). Lean/heavy profile pattern kept.
 
 ### Phase 2 -- Build
 
