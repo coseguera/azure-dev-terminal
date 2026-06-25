@@ -1,0 +1,345 @@
+#cloud-config
+# =============================================================================
+# azure-dev-terminal -- core-build custom-data (Azure --custom-data)
+# -----------------------------------------------------------------------------
+# Console-first, SSH-only Azure dev VM: LazyVim + Copilot CLI, no desktop, no VNC.
+#
+# ACCOUNT MODEL (important): this VM is reached purely over Microsoft Entra ID SSH.
+# When you `az ssh vm`, you land in an account derived from your Entra identity,
+# created on first login via pam_mkhomedir -- which copies /etc/skel. So the core
+# build is staged into /etc/skel and the toolchain is installed system-wide. There
+# is NO fixed dev account; your Entra identity IS the dev account. The local admin
+# account (created by `az vm create`) is locked out of SSH and sudo at the end.
+#
+# This file is the COMMITTED TEMPLATE. provision.sh renders a filled copy
+# (cloud-init/custom-data, gitignored) by substituting the placeholders below.
+#
+# Placeholders (substituted by provision.sh):
+#   __ADMIN__   - the local admin username from `az vm create --admin-username`
+#                 (locked out of SSH/sudo at the end of this config)
+#
+# CONSTRAINTS:
+#   - PURE ASCII ONLY. A single non-ASCII byte breaks `az vm create`
+#     ("latin-1 codec can't encode"). Verify: LC_ALL=C grep -nP '[^\x00-\x7F]' <file>
+#   - Idempotent / re-run safe where practical. "Reset" = delete + recreate.
+#   - Glyphs and theme render in the CLIENT terminal; the VM installs no fonts.
+# =============================================================================
+
+package_update: true
+package_upgrade: false   # targeted installs below; unattended-upgrades handles CVEs
+
+# -- System packages -----------------------------------------------------------
+packages:
+  # Core toolchain / build deps (treesitter, native modules)
+  - build-essential
+  - pkg-config
+  - git
+  - curl
+  - ca-certificates
+  - gnupg
+  - unzip
+  - jq
+  # Editor search/navigation deps used by LazyVim
+  - ripgrep
+  - fd-find
+  - fzf
+  # Pretty git diffs (wired as the git pager in /etc/skel/.gitconfig)
+  - git-delta
+  # Python tooling (language servers, pipx tools)
+  - python3-venv
+  - python3-pip
+  - pipx
+  # Session persistence (opt-in; not auto-started)
+  - tmux
+  # Encrypted token vault for Copilot CLI (Secret Service over D-Bus)
+  - gnome-keyring
+  - libpam-gnome-keyring
+  - libsecret-1-0
+  - libsecret-tools
+  - dbus-user-session
+  # Host hardening (defense-in-depth behind the default-deny NSG)
+  - ufw
+  - unattended-upgrades
+
+write_files:
+  # -- SSH hardening ----------------------------------------------------------
+  # No passwords, no root login, no X11 forwarding. The only credential that can
+  # authenticate is the Entra-issued certificate.
+  - path: /etc/ssh/sshd_config.d/10-azure-dev-terminal.conf
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+
+  # -- Unattended security upgrades -------------------------------------------
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  - path: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    permissions: '0644'
+    content: |
+      // Throwaway VM: apply security updates automatically, do not auto-reboot.
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+  # -- tmux config (staged into every Entra user's home) ----------------------
+  # Minimal, Tokyo Night-aligned. Opt-in: not auto-started on login. Reattach
+  # with the `ta` alias (see /etc/skel/.bashrc.d). 256color + mouse + deep history.
+  - path: /etc/skel/.tmux.conf
+    permissions: '0644'
+    content: |
+      # azure-dev-terminal -- minimal tmux config (Tokyo Night-aligned)
+      set -g default-terminal "tmux-256color"
+      set -ga terminal-overrides ",*256col*:Tc"
+      set -g mouse on
+      set -g history-limit 50000
+      set -g base-index 1
+      setw -g pane-base-index 1
+      set -g renumber-windows on
+      set -sg escape-time 10
+      set -g status-position top
+      # Tokyo Night (storm) status bar colors
+      set -g status-style "fg=#c0caf5,bg=#1f2335"
+      set -g status-left "#[fg=#7aa2f7,bold] #S "
+      set -g status-left-length 30
+      set -g status-right "#[fg=#7aa2f7] %Y-%m-%d %H:%M "
+      set -g window-status-current-style "fg=#1f2335,bg=#7aa2f7,bold"
+      set -g pane-active-border-style "fg=#7aa2f7"
+      set -g pane-border-style "fg=#3b4261"
+
+  # -- Git config (delta as pager) --------------------------------------------
+  - path: /etc/skel/.gitconfig
+    permissions: '0644'
+    content: |
+      [core]
+          pager = delta
+      [interactive]
+          diffFilter = delta --color-only
+      [delta]
+          navigate = true
+          line-numbers = true
+          syntax-theme = Nord
+      [merge]
+          conflictStyle = zdiff3
+      [init]
+          defaultBranch = main
+
+  # -- Shell aliases / PATH (sourced from skel .bashrc) -----------------------
+  - path: /etc/skel/.bashrc.d/10-azure-dev-terminal.sh
+    permissions: '0644'
+    content: |
+      # azure-dev-terminal shell setup (sourced from ~/.bashrc)
+      # tmux reattach-or-new: survives SSH disconnects (NOT VM deallocation).
+      alias ta='tmux attach -t main 2>/dev/null || tmux new -s main'
+      # System-wide npm globals (Copilot CLI) on PATH.
+      case ":$PATH:" in
+        *":/usr/local/bin:"*) ;;
+        *) export PATH="/usr/local/bin:$PATH" ;;
+      esac
+      # Copilot CLI terminal toggle inside LazyVim is <C-/> (fallback <C-t> / <leader>tt).
+
+  # -- LazyVim: snacks terminal float + fallback keybinds ---------------------
+  # Staged into the LazyVim config before the headless sync (see build-core.sh).
+  # Large centered float on <C-/>, with <C-t> / <leader>tt fallbacks for terminals
+  # that cannot transmit <C-/>.
+  - path: /var/lib/azure-dev-terminal/nvim-plugins/snacks.lua
+    permissions: '0644'
+    content: |
+      return {
+        {
+          "folke/snacks.nvim",
+          opts = {
+            terminal = {
+              win = {
+                style = "terminal",
+                position = "float",
+                width = 0.9,
+                height = 0.9,
+                border = "rounded",
+              },
+            },
+          },
+          keys = {
+            {
+              "<C-/>",
+              function() Snacks.terminal() end,
+              desc = "Toggle Terminal",
+              mode = { "n", "t" },
+            },
+            {
+              "<C-t>",
+              function() Snacks.terminal() end,
+              desc = "Toggle Terminal (fallback)",
+              mode = { "n", "t" },
+            },
+            {
+              "<leader>tt",
+              function() Snacks.terminal() end,
+              desc = "Toggle Terminal",
+              mode = { "n" },
+            },
+          },
+        },
+      }
+
+  # -- Build script: assemble the core build into /etc/skel -------------------
+  # Run once by runcmd. Installs system-wide tools, then stages the LazyVim
+  # config into /etc/skel so every new Entra login inherits a ready environment
+  # (plugins install on first `nvim` run).
+  - path: /var/lib/azure-dev-terminal/build-core.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      # Assemble the system-wide toolchain and the /etc/skel core build.
+      # Safe to re-run; each step guards against repeating itself.
+      set -uo pipefail
+      log() { echo "[core-build] $*"; }
+
+      ARCH="$(dpkg --print-architecture)"   # amd64 | arm64
+      case "$ARCH" in
+        amd64) NVIM_ARCH="x86_64"; LG_ARCH="x86_64" ;;
+        arm64) NVIM_ARCH="arm64";  LG_ARCH="arm64" ;;
+        *)     log "unsupported arch: $ARCH"; exit 1 ;;
+      esac
+
+      # --- fd symlink (Debian/Ubuntu ship the binary as fdfind) ---
+      if command -v fdfind >/dev/null 2>&1 && [ ! -e /usr/local/bin/fd ]; then
+        ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+      fi
+
+      # --- GitHub CLI from the official apt repo ---
+      if ! command -v gh >/dev/null 2>&1; then
+        log "installing gh"
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+          -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        chmod 0644 /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+          > /etc/apt/sources.list.d/github-cli.list
+        apt-get update -y
+        apt-get install -y gh
+      fi
+
+      # --- Node.js (system-wide) via NodeSource; provides node + npm on PATH ---
+      if ! command -v node >/dev/null 2>&1; then
+        log "installing Node.js (system-wide)"
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+        apt-get install -y nodejs
+      fi
+
+      # --- Copilot CLI (system-wide global) ---
+      if ! command -v copilot >/dev/null 2>&1; then
+        log "installing Copilot CLI"
+        npm install -g @github/copilot
+      fi
+
+      # --- Neovim from the latest GitHub release (newer than apt) ---
+      if ! command -v nvim >/dev/null 2>&1; then
+        log "installing Neovim (release)"
+        TARBALL="nvim-linux-${NVIM_ARCH}.tar.gz"
+        if curl -fsSL -o /tmp/nvim.tar.gz \
+             "https://github.com/neovim/neovim/releases/latest/download/${TARBALL}"; then
+          rm -rf /opt/nvim
+          tar -C /opt -xzf /tmp/nvim.tar.gz
+          mv "/opt/nvim-linux-${NVIM_ARCH}" /opt/nvim
+          ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim
+          rm -f /tmp/nvim.tar.gz
+        else
+          log "WARNING: Neovim release download failed; falling back to apt"
+          apt-get install -y neovim
+        fi
+      fi
+
+      # --- lazygit from the latest GitHub release ---
+      if ! command -v lazygit >/dev/null 2>&1; then
+        log "installing lazygit"
+        LG_VER="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest \
+                  | jq -r '.tag_name' | sed 's/^v//')"
+        if [ -n "$LG_VER" ] && [ "$LG_VER" != "null" ]; then
+          curl -fsSL -o /tmp/lazygit.tar.gz \
+            "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LG_VER}_Linux_${LG_ARCH}.tar.gz"
+          tar -C /usr/local/bin -xzf /tmp/lazygit.tar.gz lazygit
+          rm -f /tmp/lazygit.tar.gz
+        else
+          log "WARNING: could not resolve lazygit version; skipping"
+        fi
+      fi
+
+      # --- lazygit theme (Tokyo Night-aligned) into /etc/skel ---
+      mkdir -p /etc/skel/.config/lazygit
+      cat > /etc/skel/.config/lazygit/config.yml <<'YML'
+      gui:
+        theme:
+          activeBorderColor: ["#7aa2f7", bold]
+          inactiveBorderColor: ["#3b4261"]
+          selectedLineBgColor: ["#283457"]
+      YML
+
+      # --- Ensure skel .bashrc sources ~/.bashrc.d/*.sh ---
+      touch /etc/skel/.bashrc
+      if ! grep -q 'bashrc.d/\*.sh' /etc/skel/.bashrc 2>/dev/null; then
+        cat >> /etc/skel/.bashrc <<'RC'
+
+      # azure-dev-terminal: load drop-in shell config
+      if [ -d "$HOME/.bashrc.d" ]; then
+        for _rc in "$HOME"/.bashrc.d/*.sh; do
+          [ -r "$_rc" ] && . "$_rc"
+        done
+        unset _rc
+      fi
+      RC
+      fi
+
+      # --- Stage the LazyVim config into /etc/skel ---
+      # Only the config is staged; Lazy.nvim installs plugins on the first `nvim`
+      # run per user. This keeps the build simple -- one git clone, no throwaway
+      # HOME, no headless sync -- at the cost of a one-time plugin download the
+      # first time each user opens nvim.
+      SKEL_NVIM="/etc/skel/.config/nvim"
+      if [ ! -e "$SKEL_NVIM/init.lua" ]; then
+        log "staging LazyVim config into /etc/skel"
+        mkdir -p /etc/skel/.config
+        git clone --depth 1 https://github.com/LazyVim/starter "$SKEL_NVIM"
+        rm -rf "$SKEL_NVIM/.git"
+        mkdir -p "$SKEL_NVIM/lua/plugins"
+        cp /var/lib/azure-dev-terminal/nvim-plugins/snacks.lua \
+           "$SKEL_NVIM/lua/plugins/snacks.lua"
+      fi
+
+      # Normalize skel ownership/permissions (root-owned, world-readable dirs).
+      chown -R root:root /etc/skel
+      find /etc/skel -type d -exec chmod 0755 {} +
+
+      log "core build complete"
+
+runcmd:
+  # --- SSH + host firewall ---------------------------------------------------
+  - systemctl restart ssh || systemctl restart sshd || true
+  - ufw --force default deny incoming
+  - ufw --force default allow outgoing
+  - ufw allow 22/tcp
+  - ufw --force enable
+
+  # --- gnome-keyring auto-unlock via PAM (login + sshd) ----------------------
+  # session auto_start brings up the Secret Service daemon so Copilot CLI can
+  # store its token. NOTE: Entra users have no local password, so the login
+  # keyring is created without one (auto-unlocked). Acceptable for a single-user
+  # throwaway VM; validated under feas-keyring.
+  - bash -c 'for f in /etc/pam.d/sshd /etc/pam.d/login; do grep -q pam_gnome_keyring "$f" || printf "auth       optional     pam_gnome_keyring.so\nsession    optional     pam_gnome_keyring.so auto_start\n" >> "$f"; done'
+
+  # --- Assemble the system-wide toolchain + /etc/skel core build -------------
+  - /var/lib/azure-dev-terminal/build-core.sh
+
+  # --- Lock down the local admin account (__ADMIN__) -------------------------
+  # The throwaway key used by `az vm create` is removed, the account password is
+  # locked, and sudo is dropped. After this, the ONLY way in is Entra ID SSH; the
+  # only sudo path is the Entra "Virtual Machine Administrator Login" RBAC role.
+  - bash -c 'truncate -s 0 /home/__ADMIN__/.ssh/authorized_keys 2>/dev/null || true'
+  - passwd -l __ADMIN__ || true
+  - gpasswd -d __ADMIN__ sudo 2>/dev/null || true
+  - rm -f /etc/sudoers.d/90-cloud-init-users
+
+final_message: "azure-dev-terminal core build finished after $UPTIME s"
