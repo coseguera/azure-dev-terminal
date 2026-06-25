@@ -8,8 +8,8 @@ overlays/secret*
 overlays/*.local
 
 # Filled cloud-init custom-data (may hold host/user specifics); keep the example.
-cloud-init/custom-data
-!cloud-init/custom-data.example
+cloud-init/azure/custom-data
+!cloud-init/azure/custom-data.example
 
 # Azure deploy outputs / connection details (may hold IPs, resource ids)
 connect.env
