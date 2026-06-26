@@ -79,10 +79,14 @@ runcmd:
   - ufw --force enable
 
   # --- Run the platform-agnostic core build (stages into /etc/skel) ----------
+  # Run it fail-loud: on failure, drop a sentinel and a clear marker so a broken
+  # build is unmistakable in the serial console / cloud-init log instead of being
+  # masked by the success final_message below (runcmd does not abort on error).
   - mkdir -p /var/lib/azure-dev-terminal/core-build
   - tar xzf /var/lib/azure-dev-terminal/core-build.tgz -C /var/lib/azure-dev-terminal/core-build
   - chmod +x /var/lib/azure-dev-terminal/core-build/install.sh
-  - /var/lib/azure-dev-terminal/core-build/install.sh --target-dir /etc/skel
+  - bash -c '/var/lib/azure-dev-terminal/core-build/install.sh --target-dir /etc/skel || { echo "FAILED" > /var/lib/azure-dev-terminal/core-build.status; echo "[azure-dev-terminal] CORE BUILD FAILED -- see /var/log/cloud-init-output.log" >&2; exit 1; }'
+  - bash -c 'test -f /var/lib/azure-dev-terminal/core-build.status || echo OK > /var/lib/azure-dev-terminal/core-build.status'
 
   # --- Lock down the local admin account (__ADMIN__) -------------------------
   # The throwaway key used by `az vm create` is removed, the account password is

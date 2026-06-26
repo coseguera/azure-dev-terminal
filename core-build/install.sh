@@ -49,6 +49,16 @@ die()  { echo "[core-build] ERROR: $*" >&2; exit 1; }
 
 export DEBIAN_FRONTEND=noninteractive
 
+# On a fresh cloud VM, unattended-upgrades / apt-daily timers and (under cloud-init)
+# the platform's own package phase run apt CONCURRENTLY and hold the dpkg lock. Without
+# this, an early `apt-get` aborts the whole build with "Could not get lock". Make EVERY
+# apt invocation -- including those run by third-party setup scripts such as NodeSource --
+# WAIT for the lock instead of failing. (DPkg::Lock::Timeout is honored by apt >= 1.9.11.)
+if [ -d /etc/apt ]; then
+  mkdir -p /etc/apt/apt.conf.d
+  echo 'DPkg::Lock::Timeout "600";' > /etc/apt/apt.conf.d/99adt-lock-timeout
+fi
+
 ARCH="$(dpkg --print-architecture)"   # amd64 | arm64
 case "$ARCH" in
   amd64) NVIM_ARCH="x86_64"; LG_ARCH="x86_64" ;;
