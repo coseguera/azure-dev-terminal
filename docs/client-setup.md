@@ -76,7 +76,7 @@ From the repo directory:
 The helper starts the VM if it is deallocated, requests Just-in-Time access for
 port 22 from your current source, then opens an Entra ID SSH session. You land in a
 shell; start the editor with `nvim`, and open the Copilot CLI terminal inside it
-with `Ctrl+/` (fallbacks: `Ctrl+t`, or `<leader>tt`).
+with `Ctrl+/` (fallback: `Ctrl+t`).
 
 ### Networks behind a multi-range NAT pool
 
