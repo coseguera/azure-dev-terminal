@@ -6,8 +6,8 @@
 # Microsoft Entra ID SSH. Run it on demand in a separate terminal; it does not
 # disturb an open connect.sh session.
 #
-#   ./sync.sh push <local-path> <remote-dir> [profile] [--delete] [--dry-run]   # local -> VM
-#   ./sync.sh pull <remote-path> <local-dir> [profile] [--delete] [--dry-run]   # VM    -> local
+#   ./sync.sh push <local-path> <remote-dir> [-p <profile>] [--delete] [--dry-run]   # local -> VM
+#   ./sync.sh pull <remote-path> <local-dir> [-p <profile>] [--delete] [--dry-run]   # VM    -> local
 #
 # Arguments are scp-style: always <source> then <destination>. The SOURCE may be a
 # file or a directory; the DESTINATION is the PARENT directory it lands in (created
@@ -29,8 +29,8 @@ ADT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 usage() {
   echo "Usage (scp-style: <source> then <destination>):" >&2
-  echo "  ./sync.sh push <local-path> <remote-dir> [profile] [--delete] [--dry-run]   # local -> VM" >&2
-  echo "  ./sync.sh pull <remote-path> <local-dir> [profile] [--delete] [--dry-run]   # VM    -> local" >&2
+  echo "  ./sync.sh push <local-path> <remote-dir> [-p <profile>] [--delete] [--dry-run]   # local -> VM" >&2
+  echo "  ./sync.sh pull <remote-path> <local-dir> [-p <profile>] [--delete] [--dry-run]   # VM    -> local" >&2
   exit 1
 }
 
@@ -45,12 +45,14 @@ case "$DST_ARG" in -*) usage ;; esac
 shift 3
 
 PROFILE=""; DELETE=""; DRYRUN=""
-for arg in "$@"; do
-  case "$arg" in
-    --delete)  DELETE="--delete" ;;
-    --dry-run) DRYRUN="--dry-run" ;;
-    -*)        adt_err "unknown option: $arg"; usage ;;
-    *)         PROFILE="$arg" ;;
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p|--profile)
+      [ $# -ge 2 ] || { adt_err "$1 requires a value"; usage; }
+      PROFILE="$2"; shift 2 ;;
+    --delete)  DELETE="--delete"; shift ;;
+    --dry-run) DRYRUN="--dry-run"; shift ;;
+    *)         adt_err "unknown option: $1"; usage ;;
   esac
 done
 

@@ -75,8 +75,9 @@ From the repo directory:
 
 The helper starts the VM if it is deallocated, requests Just-in-Time access for
 port 22 from your current source, then opens an Entra ID SSH session. You land in a
-shell; start the editor with `nvim`, and open the Copilot CLI terminal inside it
-with `Ctrl+/` (fallback: `Ctrl+t`).
+shell; start the editor with `nvim`, and toggle a floating terminal inside it with
+`Ctrl+/` (fallback `Ctrl+t`) to run `copilot`. To skip the shell and land straight in
+nvim, use **dev mode** (below).
 
 ### Networks behind a multi-range NAT pool
 
@@ -95,9 +96,37 @@ JIT_SRC=203.0.113.0/24,198.51.100.0/24
 Then pass the profile name:
 
 ```sh
-./connect.sh <name>                  # macOS / Linux
+./connect.sh -p <name>               # macOS / Linux
 ./connect.ps1 -NetworkProfile <name> # Windows
 ```
+
+---
+
+## Landing straight in nvim (dev mode)
+
+To skip the shell and land directly in nvim, use dev mode. It opens nvim on the VM in
+the given directory (or your VM home if omitted):
+
+```sh
+# macOS / Linux
+./connect.sh --dev                 # nvim at your VM home
+./connect.sh --dev dev/proj        # nvim at ~/dev/proj on the VM
+./connect.sh -p nat --dev dev/proj # combine a network profile with dev mode
+
+# Windows (PowerShell)
+./connect.ps1 -Dev
+./connect.ps1 -Dev -Path 'dev/proj'
+./connect.ps1 -NetworkProfile nat -Dev -Path 'dev/proj'
+```
+
+> **The path is evaluated on the VM, not your client.** Do not use `~` (or a local
+> absolute path like `/Users/you/...`): your local shell expands those *before* the
+> helper runs, producing a path that does not exist on the VM. Pass a path **relative
+> to your VM home** (e.g. `dev/proj` -> `~/dev/proj`) or an **absolute VM path** (e.g.
+> `/home/you/dev/proj`).
+
+Dev mode allocates a pseudo-tty over `az ssh vm -- -t` so nvim runs interactively. Quit
+nvim to return to your local shell.
 
 > Your public IP can change when you switch networks. If a connection times out,
 > re-check which network you are on and whether you need a profile (or the default
@@ -121,6 +150,10 @@ open (e.g. a connect session running).
 # Windows (PowerShell)
 ./sync.ps1 push C:\notes /home/<you>
 ./sync.ps1 pull /home/<you>/out .\downloads
+
+# Behind a multi-range NAT pool, pass a profile (same -p / -NetworkProfile as connect):
+./sync.sh push ~/notes /home/<you> -p nat
+./sync.ps1 push C:\notes /home/<you> -NetworkProfile nat
 ```
 
 Options: `--delete` (mirror deletions) and `--dry-run` (preview). On Windows these
@@ -170,8 +203,8 @@ tmux commands start with the **prefix** `Ctrl+b`, released, then a key:
 | `Ctrl+b` `?` | list all key bindings |
 
 > Inside LazyVim you usually don't need tmux panes -- use the editor's own splits and
-> the `Ctrl+/` terminal. tmux earns its keep as the **outer** layer that survives
-> disconnects and lets you run long jobs in a separate window.
+> the `Ctrl+/` terminal (fallback `Ctrl+t`). tmux earns its keep as the **outer** layer
+> that survives disconnects and lets you run long jobs in a separate window.
 
 ### Managing sessions
 
