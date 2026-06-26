@@ -12,10 +12,10 @@
 #
 # Usage:  ./connect.sh [network-profile]
 #   ./connect.sh              # JIT source = this machine's detected public IP (/32)
-#   ./connect.sh corp         # JIT source = CIDRs from connect.corp.local (gitignored)
+#   ./connect.sh nat          # JIT source = CIDRs from connect.nat.local (gitignored)
 #
 # For networks behind a multi-range NAT pool (the detected /32 never matches), create
-# a profile once:  echo 'JIT_SRC=203.0.113.0/24,198.51.100.0/24' > connect.corp.local
+# a profile once:  echo 'JIT_SRC=203.0.113.0/24,198.51.100.0/24' > connect.nat.local
 #
 # VM identity (LOC/RG/VM) is read from the VM config; override with ADT_CONFIG.
 # =============================================================================

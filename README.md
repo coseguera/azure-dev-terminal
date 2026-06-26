@@ -42,6 +42,7 @@ core build). The full design and phased build plan live in
 - **Plan & design:** [`docs/plan.md`](docs/plan.md)
 - **Decisions (ADRs):** [`docs/decisions/`](docs/decisions/)
 - **Gotchas:** [`docs/gotchas.md`](docs/gotchas.md)
+- **Running commands on the VM (validation):** [`docs/vm-validation.md`](docs/vm-validation.md)
 - **Provisioning:** `provision.sh` + `cloud-init/` -- an Azure `--custom-data` config
   that reproduces the core build on first boot.
 

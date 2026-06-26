@@ -46,4 +46,4 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
 - `core-build/` stays Azure-unaware -- no Entra/JIT/cloud-init knowledge leaks into it.
 - New durable design choices get an ADR in `docs/decisions/`.
 
-See `docs/gotchas.md` for the specific traps (apt lock race, corp-NAT, ASCII, etc.).
+See `docs/gotchas.md` for the specific traps (apt lock race, multi-range NAT, ASCII, etc.).

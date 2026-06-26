@@ -8,10 +8,10 @@
 #
 # Usage:  ./connect.ps1 [-Profile <name>]
 #   ./connect.ps1                 # JIT source = this machine's detected public IP (/32)
-#   ./connect.ps1 -Profile corp   # JIT source = CIDRs from connect.corp.local (gitignored)
+#   ./connect.ps1 -NetworkProfile nat   # JIT source = CIDRs from connect.nat.local (gitignored)
 #
 # For networks behind a multi-range NAT pool, create a profile once:
-#   'JIT_SRC=203.0.113.0/24,198.51.100.0/24' | Set-Content connect.corp.local
+#   'JIT_SRC=203.0.113.0/24,198.51.100.0/24' | Set-Content connect.nat.local
 #
 # VM identity (LOC/RG/VM) is read from the VM config; override with $env:ADT_CONFIG.
 # =============================================================================
