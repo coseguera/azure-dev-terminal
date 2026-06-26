@@ -8,7 +8,7 @@
 # so it can be reused on other hosts (e.g. a Pi/laptop) via their own overlay.
 #
 # ACCOUNT MODEL: this VM is reached purely over Microsoft Entra ID SSH. On first
-# login your home is created from /etc/skel (via pam_mkhomedir), so you land in a
+# login your home is created from /etc/skel (via the AAD SSH extension / pam_aad.so), so you land in a
 # ready LazyVim + Copilot CLI environment AS your Entra identity -- there is no
 # fixed dev account. The local admin account (from `az vm create`) is locked out
 # of SSH and sudo at the end.
