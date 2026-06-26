@@ -26,9 +26,11 @@ return {
         mode = { "n", "t" },
       },
       {
-        "<leader>tt",
-        function() Snacks.terminal() end,
-        desc = "Toggle Terminal",
+        "<leader>fL",
+        function()
+          Snacks.notify("Open terminals: " .. #Snacks.terminal.list(), { title = "Terminal" })
+        end,
+        desc = "List terminals (count)",
         mode = { "n" },
       },
     },

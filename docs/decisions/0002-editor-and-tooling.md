@@ -14,8 +14,7 @@ the AI CLI's auth token.
 
 - **Editor: LazyVim** (a Neovim distribution) installed from the Neovim release
   build, themed Tokyo Night, with a Nerd Font assumed on the client. The Copilot
-  CLI runs in a floating terminal toggled with `Ctrl+/` (fallbacks `Ctrl+t`,
-  `<leader>tt`).
+  CLI runs in a floating terminal toggled with `Ctrl+/` (fallback `Ctrl+t`).
 - **Node: system-wide via NodeSource**, not `nvm`. The AI CLI is installed as a
   global npm package on the system `PATH`. A system install seeds every user from
   `/etc/skel` without per-user version-manager setup, and avoids the ordering

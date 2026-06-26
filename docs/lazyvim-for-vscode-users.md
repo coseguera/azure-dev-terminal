@@ -132,9 +132,40 @@ From a plain shell you also get pretty diffs for free thanks to delta:
 `git diff`, `git show HEAD`, `git log -p` are all syntax-highlighted and side-by-side.
 
 ### Work with the Copilot CLI
-Toggle the floating terminal with `Ctrl+/` (fallbacks `Ctrl+t`, `<leader>tt`) and run
+Toggle the floating terminal with `Ctrl+/` (fallback `Ctrl+t`) and run
 `copilot`. Because it's a terminal split, you can ask it to make changes, then jump back to the
-editor (`Ctrl+/` again) to review them with the LSP and lazygit.
+editor (`Ctrl+/` again) to review them with the LSP and lazygit. (LazyVim also provides
+`<leader>ft` / `<leader>fT` under the **file/find** menu to open a terminal in the root dir / cwd.)
+
+**How the terminal toggle picks a terminal.** The toggle does not track "the terminal I'm
+looking at." On every press it computes an **id** from `cmd` + `cwd` + `env` +
+**count** (`vim.v.count1`), and shows/hides the terminal matching that id. In this config only
+the **count** varies the id, so:
+
+- `Ctrl+/` (no count) always toggles terminal **1**.
+- `2 Ctrl+/`, `3 Ctrl+/`, ... open/toggle terminals **2**, **3**, ... -- that's how you
+  deliberately keep two terminals at once (e.g. `copilot` in one, test runs in another).
+
+> **The swap trap.** If terminal 1 is showing and you open terminal 2 (`2 Ctrl+/`), *both* are
+> now "shown" (2's float sits on top). A plain `Ctrl+/` only toggles terminal **1**, so it
+> ping-pongs 1's visibility while 2 stays up -- you never fall back to your buffers. A count-1
+> toggle cannot dismiss the count-2 terminal.
+>
+> **Always-get-back-to-buffers keys** (work on the *focused* float regardless of id):
+> `Esc Esc` to enter Normal mode inside the float, then `q` to hide it. Repeat for each float
+> still open, or dismiss each by its own count (`2 Ctrl+/`). To see how many exist:
+> `<leader>fL` ("List terminals", under LazyVim's **file/find** menu).
+
+**Expanding collapsed Copilot CLI output (`Ctrl+O`).** The CLI's timeline collapses long tool
+output (e.g. "36 lines read"). Clicking it to expand needs the **mouse click to reach the CLI**,
+but Neovim (`mouse=a`) only forwards clicks to the float while you're in **terminal mode** -- if
+you pressed `Esc Esc` into Normal mode, the click selects Neovim text instead and nothing
+expands. The keyboard way avoids this entirely:
+
+- **`Ctrl+O`** (or `Ctrl+E`) -- "expand all timeline" in the Copilot CLI. A keystroke passes
+  straight through to the CLI, so it works regardless of mouse mode.
+- If you prefer the mouse, click **into** the float first (re-enter terminal mode), then click
+  the collapsed item.
 
 ### Windows, buffers, terminal
 - Open files become **buffers**; cycle with `Shift+h` / `Shift+l`, close with `Space b d`.

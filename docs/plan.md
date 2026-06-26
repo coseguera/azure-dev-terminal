@@ -103,7 +103,7 @@ without the tunnel, the helper is plain `az ssh`, which is trivially cross-platf
 ### Carries over (core build layer)
 
 - **LazyVim** (idempotent clone) with the snacks `<C-/>` large-float terminal, plus a
-  terminal-agnostic toggle fallback (`<C-t>` / `<leader>tt`) for clients that can't
+  terminal-agnostic toggle fallback (`<C-t>`) for clients that can't
   send `<C-/>`.
 - **Tokyo Night** theme + **JetBrainsMono Nerd Font** glyph expectation (rendered
   client-side).
