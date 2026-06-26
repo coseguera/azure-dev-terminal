@@ -9,15 +9,18 @@
 # Usage:  ./connect.ps1 [-NetworkProfile <name>] [-Dev [-Path <dir>]]
 #   ./connect.ps1                                  # shell; JIT source = detected IP (/32)
 #   ./connect.ps1 -NetworkProfile nat              # shell; CIDRs from connect.nat.local
-#   ./connect.ps1 -Dev                             # nvim at $HOME with Copilot in the float
-#   ./connect.ps1 -Dev -Path '~/dev/proj'          # nvim at that dir with Copilot in the float
-#   ./connect.ps1 -NetworkProfile nat -Dev -Path '~/work'   # combine profile with dev mode
+#   ./connect.ps1 -Dev                             # nvim at your VM home
+#   ./connect.ps1 -Dev -Path 'dev/proj'            # nvim at ~/dev/proj on the VM (path is remote)
+#   ./connect.ps1 -NetworkProfile nat -Dev -Path 'dev/proj'   # combine profile with dev mode
+#
+# NOTE: the dev-mode path is evaluated ON THE VM. Do not use '~' or a local path; pass a
+# path relative to your VM home (e.g. 'dev/proj') or an absolute VM path (e.g.
+# '/home/you/dev/proj').
 #
 # For networks behind a multi-range NAT pool, create a profile once:
 #   'JIT_SRC=203.0.113.0/24,198.51.100.0/24' | Set-Content connect.nat.local
 #
-# Dev mode (-Dev) opens nvim on the VM and auto-starts the Copilot CLI in its floating
-# terminal (via ADT_DEV=1, handled by the staged nvim config). Requires a pseudo-tty,
+# Dev mode (-Dev) opens nvim on the VM in the given directory. Requires a pseudo-tty,
 # which `az ssh vm -- -t` allocates.
 #
 # VM identity (LOC/RG/VM) is read from the VM config; override with $env:ADT_CONFIG.
@@ -45,15 +48,15 @@ $ctx = Get-AdtConfig -Dir $AdtDir
 Invoke-AdtEnsureAccess -Ctx $ctx -NetworkProfile $NetworkProfile -Duration $JitDuration -Dir $AdtDir
 
 if ($Dev) {
-  # Build the remote command: open nvim (in $Path if given) with Copilot auto-started.
+  # Build the remote command: open nvim (in $Path if given).
   if ([string]::IsNullOrEmpty($Path) -or $Path -eq '~') {
-    $remoteCmd = 'ADT_DEV=1 nvim'
+    $remoteCmd = 'nvim'
   } else {
     # Single-quote the path for the remote shell, escaping any embedded single quotes.
     $q = $Path -replace "'", "'\''"
-    $remoteCmd = "cd '$q' && ADT_DEV=1 nvim ."
+    $remoteCmd = "cd '$q' && nvim ."
   }
-  Write-AdtLog "Opening Entra ID SSH session to $($ctx.Vm) (dev mode: nvim + Copilot) ..."
+  Write-AdtLog "Opening Entra ID SSH session to $($ctx.Vm) (dev mode: nvim) ..."
   az ssh vm -g $ctx.Rg -n $ctx.Vm '--' '-t' $remoteCmd
   return
 }
