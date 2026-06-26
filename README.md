@@ -21,8 +21,9 @@ SSH, so the VM installs nothing for display.
 ## Why an Azure VM (and why it's simpler than a Pi)
 
 This distills a console-first dev environment down to a single shared **core build
-layer** (LazyVim, Tokyo Night, Nerd Font expectations, Copilot CLI via nvm + Node,
-encrypted token vault) and runs it on an Azure VM reached purely over SSH. Compared
+layer** (LazyVim, Tokyo Night, Nerd Font expectations, system-wide Node via
+NodeSource + the Copilot CLI, no system keyring) and runs it on an Azure VM reached
+purely over SSH. Compared
 with a physical Pi host, it drops all the physical-access machinery (USB gadget,
 local console, Wi-Fi/regulatory, HDMI/KMS) and, compared with a desktop VM, it drops
 VNC and the GUI layer entirely. What remains is reachability (network rules + source
@@ -30,14 +31,19 @@ restriction) and reproducibility (recreate from cloud-init custom-data).
 
 ## Status
 
-Design / build-plan stage. The full design and phased build plan live in
+Built and validated end-to-end on a live Azure VM (Entra ID SSH + JIT + cloud-init
+core build). The full design and phased build plan live in
 [`docs/plan.md`](docs/plan.md).
 
 ## Start here
 
+- **Client setup (per OS):** [`docs/client-setup.md`](docs/client-setup.md)
+- **LazyVim for VS Code users:** [`docs/lazyvim-for-vscode-users.md`](docs/lazyvim-for-vscode-users.md)
 - **Plan & design:** [`docs/plan.md`](docs/plan.md)
-- **Provisioning (planned):** `cloud-init/` -- an Azure `--custom-data` config that
-  reproduces the core build on first boot.
+- **Decisions (ADRs):** [`docs/decisions/`](docs/decisions/)
+- **Gotchas:** [`docs/gotchas.md`](docs/gotchas.md)
+- **Provisioning:** `provision.sh` + `cloud-init/` -- an Azure `--custom-data` config
+  that reproduces the core build on first boot.
 
 ## Principles
 
