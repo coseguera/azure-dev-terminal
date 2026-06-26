@@ -9,19 +9,29 @@
 
 ## 0. Current status
 
-**Stage: building.** Foundational artifacts exist and are validated (not yet run on a
-live VM): the platform-agnostic **`core-build/`** layer (`install.sh` + `files/`), the
-thin **`cloud-init/azure/custom-data.example`** overlay that runs the inlined core build,
-the **`provision.sh`** assembler + `vm.lean.conf`/`vm.heavy.conf` profiles, and the
-cross-platform **connect + sync helpers** (`connect.*`/`sync.*` over shared
-`lib/jit.sh` + `lib/jit.ps1`, with a fast-path that reuses a live JIT window). Branch:
-`core-build-foundation`. Remaining build work: client/ADR/agent docs, and live-VM
-feasibility validation.
+**Stage: building (first live run PASSED).** All foundational artifacts exist and were
+**validated on a real Azure VM** (lean B2as_v2, westus2): `provision.sh` stood up the
+RG/NSG/TrustedLaunch VM/Entra SSH ext/RBAC/Defender P2/JIT in ~4 min; JIT opened port 22
+for a CIDR profile; **Entra ID SSH login worked** (sudo via RBAC); after a bug fix the
+core build installed the full toolchain (nvim 0.12.3, node 22, Copilot CLI 1.0.65,
+lazygit 0.62.2, +delta/fd/rg/fzf/jq/tmux), staged `/etc/skel`, a fresh user inherited the
+env, and headless `Lazy! sync` installed 32 plugins. The VM + Defender P2 were then torn
+down (billing stopped). Branch: `core-build-foundation`.
 
-**Next action:** write the per-OS **client setup doc** (`build-clientdoc`: macOS/Linux/Windows
-client prerequisites -- Azure CLI, Nerd Font, truecolor terminal -- plus a tmux
-session-persistence section), then the ADRs (`build-adr`) and generic agent docs
-(`build-agentdocs`). Then validate Entra ID SSH + JIT + LazyVim + Copilot CLI end to end
+**Bug found & fixed live (commit d70acf5):** a concurrent apt (unattended-upgrades /
+cloud-init package phase) held the dpkg lock, so an early `apt-get` in the core build
+aborted the whole install before Node/Copilot/Neovim/lazygit/dotfiles -- yet cloud-init
+still reported success. Fix: `install.sh` sets a global `DPkg::Lock::Timeout` (apt waits
+for the lock; also covers NodeSource's child apt) and the overlay runs the core build
+fail-loud (writes a `core-build.status` sentinel + `CORE BUILD FAILED` marker).
+**Caveat:** the fix was re-validated by re-running install with the lock free; the
+cold-boot race itself is not yet re-proven via a fresh provision.
+
+**Next action (resume here):** OPTIONAL -- one cold re-provision to prove the dpkg-lock
+race fix end-to-end on a fresh boot (then tear down). Then finish docs: the per-OS
+**client setup doc** (`build-clientdoc`: macOS/Linux/Windows prerequisites -- Azure CLI,
+Nerd Font, truecolor terminal -- plus a tmux session-persistence section), the ADRs
+(`build-adr`), and generic agent docs (`build-agentdocs`). Remaining live feasibility
 on a live VM (`feas-access`, `feas-jit`, `feas-customdata`, `feas-keyring`).
 
 ## 1. Problem statement & goals
