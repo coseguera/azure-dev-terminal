@@ -4,8 +4,8 @@
 # One-way rsync of a file OR directory between this machine and the dev VM, over
 # Microsoft Entra ID SSH. Run it on demand; it does not disturb an open connect session.
 #
-#   ./sync.ps1 push <local-path> <remote-dir> [-Profile <name>] [-Delete] [-DryRun]   # local -> VM
-#   ./sync.ps1 pull <remote-path> <local-dir> [-Profile <name>] [-Delete] [-DryRun]   # VM    -> local
+#   ./sync.ps1 push <local-path> <remote-dir> [-p <name>] [-Delete] [-DryRun]   # local -> VM
+#   ./sync.ps1 pull <remote-path> <local-dir> [-p <name>] [-Delete] [-DryRun]   # VM    -> local
 #
 # Arguments are scp-style: always <source> then <destination>. The SOURCE may be a
 # file or a directory; the DESTINATION is the PARENT directory it lands in (created
@@ -29,7 +29,7 @@ param(
   [Parameter(Mandatory = $true, Position = 2)]
   [string]$Destination,
 
-  [Parameter(Position = 3)]
+  [Alias('p')]
   [string]$NetworkProfile = '',
 
   [switch]$Delete,
