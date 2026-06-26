@@ -9,18 +9,30 @@
 
 ## 0. Current status
 
-**Stage: design / not yet built.** Nothing is provisioned yet. The core build layer
-this plan reuses (LazyVim, Tokyo Night, Nerd Font glyphs, Copilot CLI via nvm + Node,
-encrypted token vault, `localuser` account) is already proven on a Pi via a single
-cloud-init config; the work here is to port that core build to an Azure
-`--custom-data` config and pair it with an SSH-only access layer built on **Entra ID
-SSH + Just-in-Time (JIT) network access**, dropping all physical-host and GUI
-machinery. The connection flow must be **cross-platform** (macOS, Linux, Windows).
+**Stage: building (first live run PASSED).** All foundational artifacts exist and were
+**validated on a real Azure VM** (lean B2as_v2, westus2): `provision.sh` stood up the
+RG/NSG/TrustedLaunch VM/Entra SSH ext/RBAC/Defender P2/JIT in ~4 min; JIT opened port 22
+for a CIDR profile; **Entra ID SSH login worked** (sudo via RBAC); after a bug fix the
+core build installed the full toolchain (nvim 0.12.3, node 22, Copilot CLI 1.0.65,
+lazygit 0.62.2, +delta/fd/rg/fzf/jq/tmux), staged `/etc/skel`, a fresh user inherited the
+env, and headless `Lazy! sync` installed 32 plugins. The VM + Defender P2 were then torn
+down (billing stopped). Branch: `core-build-foundation`.
 
-**Next action:** stand up a first VM from a minimal core-build `--custom-data`, reach
-it over Entra ID SSH with a JIT-opened port 22, and confirm LazyVim + Copilot CLI + a
-headless token vault work, with glyphs/theme rendering from the client terminal
-(`feas-customdata`, `feas-access`, `feas-keyring`).
+**Bug found & fixed live (commit d70acf5):** a concurrent apt (unattended-upgrades /
+cloud-init package phase) held the dpkg lock, so an early `apt-get` in the core build
+aborted the whole install before Node/Copilot/Neovim/lazygit/dotfiles -- yet cloud-init
+still reported success. Fix: `install.sh` sets a global `DPkg::Lock::Timeout` (apt waits
+for the lock; also covers NodeSource's child apt) and the overlay runs the core build
+fail-loud (writes a `core-build.status` sentinel + `CORE BUILD FAILED` marker).
+**Caveat:** the fix was re-validated by re-running install with the lock free; the
+cold-boot race itself is not yet re-proven via a fresh provision.
+
+**Next action (resume here):** OPTIONAL -- one cold re-provision to prove the dpkg-lock
+race fix end-to-end on a fresh boot (then tear down). Then finish docs: the per-OS
+**client setup doc** (`build-clientdoc`: macOS/Linux/Windows prerequisites -- Azure CLI,
+Nerd Font, truecolor terminal -- plus a tmux session-persistence section), the ADRs
+(`build-adr`), and generic agent docs (`build-agentdocs`). Remaining live feasibility
+on a live VM (`feas-access`, `feas-jit`, `feas-customdata`, `feas-keyring`).
 
 ## 1. Problem statement & goals
 
@@ -56,7 +68,7 @@ the access and GUI layers are host-specific and added or dropped per target.
 
 | Layer | Pi (console/gadget) | Desktop dev VM | **azure-dev-terminal** |
 |---|---|---|---|
-| **Core build** | LazyVim, Tokyo Night, Nerd Fonts, Copilot CLI (nvm + Node), keyring vault, dotfiles | same idea (subset) | **keep -- fully portable** |
+| **Core build** | LazyVim, Tokyo Night, Nerd Fonts, Copilot CLI (nvm + Node), keyring vault, tmux, dotfiles | same idea (subset) | **keep -- fully portable** |
 | **Access** | USB gadget / local console / Wi-Fi | Entra ID SSH + JIT, tunneled VNC | **keep Entra ID SSH + JIT; drop the tunnel** |
 | **GUI** | none (console-first) | VNC + desktop | **drop VNC entirely** |
 
@@ -72,10 +84,26 @@ without the tunnel, the helper is plain `az ssh`, which is trivially cross-platf
   send `<C-/>`.
 - **Tokyo Night** theme + **JetBrainsMono Nerd Font** glyph expectation (rendered
   client-side).
-- **Copilot CLI** via nvm + Node.
-- **Encrypted token vault** -- gnome-keyring Secret Service unlocked via PAM (requires
-  the separate `libpam-gnome-keyring` package; the daemon package alone is not enough).
-- **Dotfiles / profile** scaffolding and a `localuser`-style account.
+- **Copilot CLI** via **system-wide Node** (NodeSource), installed globally.
+- **Terminal toolchain** -- `ripgrep`/`fd`/`fzf` (LazyVim deps) plus **git-delta** (git
+  pager), **lazygit** (themed, `<leader>gg`), **gh** (GitHub CLI), and **Neovim from the
+  latest GitHub release** (newer than apt; **fail loudly** if the download fails rather
+  than silently installing a too-old apt nvim that breaks LazyVim).
+- **Copilot CLI token storage** -- the agentic `@github/copilot` CLI persists its
+  credentials in a **plain file under `~/.copilot`** (locked to the user), so **no system
+  keyring is required**. The gnome-keyring / Secret Service / PAM stack is **dropped**
+  (validate headless login on the first live VM, `feas-keyring`).
+- **Host hardening** -- `unattended-upgrades` (auto security patches) + `ufw` (host
+  firewall behind the NSG). `fail2ban` is intentionally **omitted** (it defends password
+  brute-force, a vector designed out by cert-only Entra login).
+- **Session persistence (tmux)** -- tmux installed with a minimal, Tokyo Night-aligned
+  `.tmux.conf` (256color, mouse on, 50k history) and a `ta` reattach alias. **Opt-in,
+  not auto-started on login.** Survives SSH connection loss (network blip, laptop sleep,
+  closing the terminal) so work keeps running and can be reattached -- but **not** VM
+  deallocation/recreate (see ephemerality, 3i). Does not integrate with the connect
+  helpers and installs no plugin manager.
+- **Dotfiles / profile** scaffolding staged into **`/etc/skel`** (copied into each Entra
+  user's home on first login via `pam_mkhomedir`); no fixed dev account.
 
 Mechanically these are cloud-init `write_files` + `runcmd` steps; the same cloud-init
 engine runs on Azure, so most copy over directly.
@@ -87,6 +115,36 @@ engine runs on Azure, so most copy over directly.
 - **GUI layer:** VNC server, desktop environment, the VNC port-forward, and all GUI
   session plumbing. (Dropping the tunnel is also what makes the client cross-platform --
   no OS-specific screen-sharing step.)
+
+### Repo layout -- making the core build genuinely separable
+
+The three-layer model is realized as a **layered repo structure** so the core build is a
+standalone, platform-agnostic unit (not embedded in Azure cloud-init). This is what makes
+it reusable later on an rpi4 / ARM box, per the separable-core-build intent.
+
+```
+core-build/                 # reusable, OS-aware (Debian/Ubuntu, multi-arch), Azure-UNAWARE
+  install.sh                #   standalone + idempotent; TARGET-DIR param (default /etc/skel,
+                            #   overridable to a real $HOME). Runnable by ANYTHING: cloud-init
+                            #   runcmd, a manual SSH session, Ansible, etc. -- NOT cloud-init-dependent.
+  files/                    #   .tmux.conf, .gitconfig, .bashrc.d/*.sh, lazygit theme, snacks.lua
+cloud-init/
+  azure/custom-data.example #   THIN Azure/Entra overlay: SSH hardening, ufw,
+                            #   unattended-upgrades, pam_mkhomedir, __ADMIN__ lockdown,
+                            #   then RUNS the core build (does not contain it)
+  # (future) rpi4/user-data #   a second thin overlay for a Pi (NoCloud datasource)
+provision.sh                # ASSEMBLES the final custom-data: inlines core-build/ into the
+                            # azure overlay (same "assemble at provision time" idea as __ADMIN__)
+```
+
+Key principles:
+- **`core-build/install.sh` knows nothing about Azure, Entra, cloud-init, or `__ADMIN__`.**
+  Its only platform assumption is Debian/Ubuntu apt + multi-arch (amd64/arm64) release binaries.
+- **Each platform is a thin cloud-init overlay** that does platform-specific setup, then
+  invokes the same core build. cloud-init is the *common delivery format* (Azure
+  `--custom-data`; rpi4 boot-partition `user-data`), but it is *one invoker*, not a dependency.
+- **Assembly (inline-at-provision)** keeps the layers separate in-repo while still producing a
+  **self-contained** custom-data with no boot-time repo/network coupling.
 
 ## 3. Phase 1 -- Feasibility (Azure-specific concerns)
 
@@ -129,7 +187,7 @@ the requester's current source for a bounded duration, then auto-closes. JIT req
 Defender for Servers (Plan 2) enabled on the subscription. A connection helper requests
 JIT for the current session right before connecting.
 
-### 3e. Source selection for JIT (the part that bites behind corp NAT)
+### 3e. Source selection for JIT (networks behind a multi-range NAT pool)
 
 By default JIT opens port 22 to the operator's detected public IP as a `/32` -- correct
 for home/most networks, no config needed. But some networks route outbound traffic
@@ -172,54 +230,105 @@ VM:
 - **Windows:** Windows Terminal (truecolor, supports Nerd Fonts) + an installed Nerd
   Font; connect from PowerShell.
 
-### 3h. Headless keyring
+### 3h. Copilot CLI token storage (no keyring)
 
-A headless VM has no graphical login session, so gnome-keyring auto-unlock needs the
-same headless PAM handling proven on the Pi (`libpam-gnome-keyring` + a login that
-drives PAM). Validate early -- this is the most likely Azure-specific snag.
+The agentic `@github/copilot` CLI stores its credentials in a **plain file under
+`~/.copilot`** (locked to the user), and works headless without a Secret Service. So the
+gnome-keyring / `libpam-gnome-keyring` / D-Bus / PAM stack is **dropped entirely** -- a
+significant simplification (5 fewer packages + no PAM edits + no empty-password caveat).
+Still validate headless `copilot` login persists across sessions on the first live VM
+(`feas-keyring`); if a future CLI version regresses to requiring Secret Service, reintroduce
+the keyring overlay then.
 
 ### 3i. Ephemerality model
 
-"Throwaway" = **deallocate or delete** the VM and recreate from `--custom-data`. Give
-the VM's managed identity a tightly-scoped RBAC role so it can start/stop/deallocate
-**only itself**, and let the connection helper start it when deallocated. The
-reproducibility guarantee matches the Pi's reflash; only the reset mechanism differs.
+"Throwaway" = **deallocate or delete** the VM and recreate from `--custom-data`. The
+connection helper starts the VM (with the operator's own credentials) when it is
+deallocated; `stop` deallocates it manually to save cost. Because the chosen baseline
+runs **always-on under budget** (see 3j, no guest-side auto-shutdown), the VM never
+needs to stop *itself* -- so the **VM self-deallocate managed-identity role is dropped**.
+The reproducibility guarantee matches the Pi's reflash; only the reset mechanism differs.
 
-### 3j. VM baseline
+### 3j. VM baseline (resolved)
 
-Pick image (Ubuntu LTS vs Debian to match the Pi's Bookworm), size/SKU, and disk --
-the cheapest that runs Copilot CLI comfortably. (A very small host was too sluggish for
-interactive Copilot CLI on the Pi side; size up rather than under-provision.) Keep a
-lean and a beefier size profile so the host can be tuned per session.
+**Decision: `Standard_B2as_v2`** (burstable, 2 vCPU / 8 GB) with a **64 GB Standard SSD
+(E6)** OS disk, Ubuntu LTS. All-in **~$87/mo running 24/7** (VM ~$62 + disk ~$4.80 +
+Defender for Servers P2 ~$15 + Standard public IP ~$3.7), comfortably under the
+**~$150/month budget** -- so the VM is **always-on, no auto-shutdown** (see 3k).
+
+Burstable suits the workload: terminal Copilot CLI + LazyVim is near-idle most of the
+time (banking CPU credits) with short bursts (LSP indexing, builds, `:Lazy! sync`).
+The Pi's sluggishness was SD-card I/O + ARM, not CPU/RAM, so a small x86 VM with SSD
+feels snappy. Keep the **lean/heavy two-profile pattern**: lean is the default above; a
+heavy dedicated D-series is available for sustained heavy compiles (see 3k for the
+cost/auto-shutdown coupling).
+
+### 3k. Sizing x burstability x auto-shutdown
+
+The VM uses **Trusted Launch** (Secure Boot + vTPM + measured boot) for boot integrity.
+Cost control is governed by one coupled rule:
+
+- Burstable VMs **bank CPU credits while idle** and **reset them on deallocate**. Running
+  always-on continuously banks credits (full balance ready to burst) **and** fits budget
+  -- so burstable + always-on reinforce each other. **No auto-shutdown** for the lean
+  baseline.
+- The trigger to leave burstable is **sustained high-CPU work** that exhausts credits and
+  throttles to baseline -- which points to a **dedicated D-series**.
+- A dedicated 4-core (e.g. `D4as_v5`, ~$151/mo at 24/7) **breaks the $150 budget if
+  always-on**, so a heavy profile must ship **with guest-side auto-shutdown** to claw the
+  cost back (dedicated SKUs have no burst credits to lose, so no penalty).
+- **Rule:** *Burstable -> always-on. Dedicated (sustained loads) -> auto-shutdown.*
 
 ## 4. Phase 2 -- Build plan
 
 1. **Skeleton** -- repo scaffold (README, `docs/`, `.gitignore` for secret overlays and
    network profiles).
-2. **Core-build custom-data** -- port the Pi's core-build cloud-init steps into an
-   Azure `--custom-data` file (ASCII-only): toolchain, nvm + Node + Copilot CLI,
-   LazyVim clone + headless `:Lazy! sync`, Tokyo Night, keyring + PAM, the dev account.
-3. **Provisioning script** -- create RG, default-deny NSG, VM with managed identity +
-   AAD SSH login extension, RBAC for admin login and for self start/stop, enable
-   Defender for Servers, and create the per-VM JIT policy for port 22.
+2. **Core build (`core-build/`)** -- a **standalone, Azure-unaware** `install.sh`
+   (idempotent, multi-arch, **target-dir param**) + `files/`: toolchain (incl.
+   **git-delta, lazygit (themed), gh, Neovim-from-release with fail-loud download**),
+   **system-wide Node + Copilot CLI**, LazyVim config staged (plugins install on first
+   `nvim`), Tokyo Night, tmux + minimal `.tmux.conf` + `ta` alias, lazygit theme,
+   `.gitconfig` (delta pager), `.bashrc.d` PATH/aliases. **No keyring stack** (Copilot
+   uses its `~/.copilot` file token). Runnable by any invoker, not just cloud-init.
+3. **Azure cloud-init overlay (`cloud-init/azure/custom-data.example`)** -- a **thin**
+   ASCII-only overlay: SSH hardening, **`unattended-upgrades` + `ufw`**, `pam_mkhomedir`,
+   `__ADMIN__` lockdown, then **runs the core build** (inlined at provision time). It does
+   not contain the toolchain logic.
+3. **Provisioning script** -- create RG, default-deny NSG, VM with **Trusted Launch**
+   (Secure Boot + vTPM) + managed identity + AAD SSH login extension, RBAC for admin
+   login, enable Defender for Servers, and create the per-VM JIT policy for port 22.
+   (No self-deallocate role -- the lean baseline is always-on.) Also **assembles** the
+   final `custom-data` by inlining `core-build/` into the Azure overlay.
 4. **Connection helpers (cross-platform)** -- a `bash` `connect.sh` (macOS/Linux) and a
    PowerShell `connect.ps1` (Windows): start-if-deallocated, request JIT for the current
    source or a selected per-network CIDR profile, then `az ssh vm` straight into a shell
    (no VNC port-forward). Both read the same gitignored profile files.
-5. **Headless vault validation** -- confirm the token vault unlocks without a GUI.
-6. **Client setup doc (per OS)** -- Azure CLI + ssh extension, Nerd Font + truecolor
-   terminal for macOS/Linux/Windows, and the `<C-/>` / fallback toggle note (no VM-side
-   rendering).
-7. **Ephemerality** -- document delete/recreate as the reset path; ensure the
+5. **File-sync helper (cross-platform)** -- redesigned from the experiment's `sync.sh`:
+   rsync push/pull over the Entra SSH connection, supporting **both files and
+   directories**, reusing **shared JIT/CIDR logic** (no duplication with connect), with
+   bash + PowerShell parity. Synced files owned by the dev user.
+6. **Token-storage validation** -- confirm `copilot` login persists across SSH sessions
+   headless (file token under `~/.copilot`), with no keyring.
+7. **Client setup doc (per OS)** -- Azure CLI + ssh extension, Nerd Font + truecolor
+   terminal for macOS/Linux/Windows, the `<C-/>` / fallback toggle note (no VM-side
+   rendering), and a **session persistence (tmux)** note: reattach with `ta` after a
+   dropped connection; survives disconnects but not VM deallocation/recreate.
+8. **ADRs + agent docs** -- a fresh `docs/decisions/` (one ADR per key decision) plus a
+   generic `.github/copilot-instructions.md` and a gotchas doc, all **kept generic** with
+   no personal or environment-specific context.
+9. **Ephemerality** -- document delete/recreate as the reset path; ensure the
    provisioner is idempotent.
 
 ## 5. Open questions to resolve during Phase 1
 
-- **Sharing the core build across hosts.** The core build is the single source of truth
-  for both the Pi project and this one. Options: a git submodule, a generated
-  include/snippet each repo splices into its cloud-init, or a small templating step.
-  Submodule is simplest to start; templating scales better if the layers diverge.
-- **VM baseline.** Final image, size/SKU, and disk; lean vs beefy profiles.
+- **Sharing the core build across hosts (resolved).** This repo is **self-contained**
+  now, but is designed so the **core build is a cleanly separable layer**, isolated from
+  the Azure access/provisioning code. Intent: this repo becomes the **canonical source**
+  of the core build, which a future `local-dev-machine` rewrite can consume from here
+  (submodule / include / copy) without dragging Azure bits along.
+- **VM baseline (resolved).** `Standard_B2as_v2`, 64 GB Standard SSD, Ubuntu LTS,
+  always-on (~$87/mo, under the $150 budget). Lean/heavy two-profile pattern kept; the
+  heavy dedicated profile pairs with auto-shutdown (see 3k).
 - **JIT duration & policy.** Session length (within policy max) and whether to script
   re-requests for long sessions.
 - **Helper parity.** How to keep the `bash` and PowerShell helpers behaviorally
@@ -233,9 +342,17 @@ lean and a beefier size profile so the host can be tuned per session.
 
 - **No secrets in git.** Source IPs/CIDRs, network profiles, keys, and filled configs
   stay local.
+- **Fully generic content.** Nothing committed reveals personal or environment-specific
+  context; keep docs, code, and configs generic. Environment specifics (source ranges,
+  network profiles) live only in gitignored overlays, never in committed text.
+- **Budget ~$150/month.** The lean baseline runs always-on under budget; bigger
+  dedicated profiles must pair with auto-shutdown (see 3k).
+- **Concept over copy.** The two sibling repos are experiments; bring concepts here and
+  **redesign** cleanly rather than copying implementations.
 - **ASCII-only `--custom-data`.** Enforced (see 3b).
 - **Identity-based, on-demand access.** Entra ID SSH only; port 22 closed until JIT
   opens it; no standing inbound rule.
+- **Boot integrity.** VM uses Trusted Launch (Secure Boot + vTPM).
 - **Cross-platform client.** macOS, Linux, and Windows are all first-class; keep the
   helpers and client docs in sync across them.
 - **Client renders display.** The VM installs nothing for glyphs/theme.
@@ -256,33 +373,56 @@ lean and a beefier size profile so the host can be tuned per session.
       (incl. a NAT-pool network); keep all CIDRs gitignored.
 - [ ] **feas-crossplatform** -- Confirm the connect flow works from macOS, Linux, and
       Windows (Azure CLI + ssh ext; bash and PowerShell helpers reach a shell).
-- [ ] **feas-keyring** -- Validate headless gnome-keyring unlock via PAM on Azure.
+- [ ] **feas-keyring** -- *(re-scoped)* Confirm `@github/copilot` login persists headless
+      via its `~/.copilot` file token (no Secret Service). Keyring stack dropped.
 - [ ] **feas-glyphs** -- Confirm Nerd Font glyphs + Tokyo Night render from the client
       terminal over SSH on each OS (document client setup).
-- [ ] **feas-baseline** -- Choose image, size/SKU, and disk that run Copilot CLI well.
+- [ ] **feas-baseline** -- *(resolved)* `Standard_B2as_v2`, 64 GB Standard SSD, Ubuntu
+      LTS, always-on (~$87/mo, under $150 budget). Lean/heavy profile pattern kept.
 
 ### Phase 2 -- Build
 
 - [ ] **build-skeleton** -- Repo scaffold (README, `docs/`, `.gitignore`). *(this change)*
-- [ ] **build-customdata** -- Full core-build `--custom-data`: toolchain, nvm + Node +
-      Copilot CLI, LazyVim + headless sync, Tokyo Night, keyring + PAM, dev account.
-      *(needs: feas-customdata)*
-- [ ] **build-provision** -- Provisioning script: RG, default-deny NSG, VM + managed
-      identity + AAD SSH login, RBAC (admin login + self start/stop), Defender for
-      Servers, per-VM JIT policy. *(needs: feas-access, feas-jit)*
+- [ ] **build-corebuild** -- Standalone, Azure-unaware `core-build/install.sh` (idempotent,
+      multi-arch, target-dir param) + `core-build/files/`: toolchain incl. **git-delta +
+      lazygit (themed) + gh + Neovim-from-release (fail-loud)**, **system-wide Node +
+      Copilot CLI**, LazyVim config (plugins on first `nvim`), Tokyo Night, tmux + minimal
+      `.tmux.conf` + `ta` alias. **No keyring stack.** *(needs: feas-customdata)*
+- [ ] **build-cloudinit-azure** -- Thin `cloud-init/azure/custom-data.example` overlay
+      (ASCII-only): SSH hardening, **unattended-upgrades + ufw**, `pam_mkhomedir`,
+      `__ADMIN__` lockdown; **runs** the core build (does not contain it).
+      *(needs: build-corebuild)*
+- [ ] **build-provision** -- Provisioning script: RG, default-deny NSG, VM with
+      **Trusted Launch** + managed identity + AAD SSH login, RBAC (admin login only --
+      **no self-deallocate role**), Defender for Servers, per-VM JIT policy.
+      *(needs: feas-access, feas-jit)*
 - [ ] **build-connect** -- Cross-platform connection helpers: `connect.sh` (bash) and
       `connect.ps1` (PowerShell), both doing start-if-deallocated + JIT (current source
       or CIDR profile) + `az ssh vm` (no VNC forward). *(needs: build-provision,
       feas-source, feas-crossplatform)*
-- [ ] **build-vault** -- Headless token-vault unlock wired and validated.
-      *(needs: build-customdata, feas-keyring)*
+- [ ] **build-sync** -- Cross-platform file-sync helper (redesigned from `sync.sh`):
+      rsync push/pull over Entra SSH, **files AND directories**, **shared JIT/CIDR
+      logic** (no duplication with connect), bash + PowerShell parity, dev-user
+      ownership. *(needs: build-provision, feas-source)*
+- [ ] **build-vault** -- *(re-scoped)* Confirm Copilot file-token under `~/.copilot`
+      persists headless; no keyring wiring needed. *(needs: build-corebuild, feas-keyring)*
 - [ ] **build-clientdoc** -- Per-OS client setup doc (Azure CLI + ssh ext, Nerd Font,
-      truecolor terminal, `<C-/>` / fallback toggle) for macOS/Linux/Windows.
-      *(needs: build-customdata)*
+      truecolor terminal, `<C-/>` / fallback toggle) for macOS/Linux/Windows. Include a
+      **Session persistence (tmux)** section: start/detach (`Ctrl-b d`)/reattach (`ta`),
+      noting it survives SSH disconnects but **not** VM deallocation/recreate.
+      *(needs: build-corebuild)*
+- [ ] **build-adr** -- Fresh `docs/decisions/` ADRs (one per key decision: access model,
+      editor tooling, sizing/burstability/auto-shutdown, tmux, host hardening), written
+      generic. *(needs: build-skeleton)*
+- [ ] **build-agentdocs** -- Generic `.github/copilot-instructions.md` + a gotchas doc
+      (ASCII-only, fail-loud nvim download, apt lock, multi-range NAT-pool CIDR profile).
+      Keep generic. *(needs: build-skeleton)*
 - [ ] **build-ephemeral** -- Idempotent provisioner; document delete/recreate reset path.
-      *(needs: build-customdata)*
-- [ ] **build-sharing** -- Decide and implement how the core build is shared with the Pi
-      project (submodule / include / templating). *(needs: build-customdata)*
+      *(needs: build-cloudinit-azure)*
+- [ ] **build-sharing** -- *(realized in layout)* The `core-build/` dir IS the separable
+      layer (Azure-unaware, target-dir param, runnable by any invoker), consumed by the
+      Azure overlay via inline-at-provision. A future rpi4/`local-dev-machine` rewrite adds
+      its own thin overlay that runs the same `core-build/install.sh`. *(needs: build-corebuild)*
 
 ## 8. References
 

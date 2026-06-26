@@ -1,0 +1,100 @@
+#cloud-config
+# =============================================================================
+# azure-dev-terminal -- Azure cloud-init overlay (--custom-data)
+# -----------------------------------------------------------------------------
+# THIN Azure/Entra overlay. This file does ONLY platform-specific work and then
+# runs the platform-agnostic core build (../../core-build). It deliberately does
+# NOT contain the toolchain/dotfiles logic -- that lives in core-build/install.sh
+# so it can be reused on other hosts (e.g. a Pi/laptop) via their own overlay.
+#
+# ACCOUNT MODEL: this VM is reached purely over Microsoft Entra ID SSH. On first
+# login your home is created from /etc/skel (via pam_mkhomedir), so you land in a
+# ready LazyVim + Copilot CLI environment AS your Entra identity -- there is no
+# fixed dev account. The local admin account (from `az vm create`) is locked out
+# of SSH and sudo at the end.
+#
+# This file is the COMMITTED TEMPLATE. provision.sh renders a filled copy
+# (cloud-init/azure/custom-data, gitignored) by substituting the placeholders.
+#
+# Placeholders (substituted by provision.sh):
+#   __ADMIN__         - the local admin username from `az vm create --admin-username`
+#                       (locked out of SSH/sudo at the end of this config)
+#   __COREBUILD_B64__ - base64 of `tar czf - -C core-build .` (the whole core-build
+#                       tree), inlined here so the deployed custom-data is
+#                       self-contained with no boot-time repo dependency
+#
+# CONSTRAINTS:
+#   - PURE ASCII ONLY. A single non-ASCII byte breaks `az vm create`
+#     ("latin-1 codec can't encode"). Verify: LC_ALL=C grep -nP '[^\x00-\x7F]' <file>
+#   - Idempotent / re-run safe where practical. "Reset" = delete + recreate.
+#   - Glyphs and theme render in the CLIENT terminal; the VM installs no fonts.
+# =============================================================================
+
+package_update: true
+package_upgrade: false   # core-build does targeted installs; unattended-upgrades handles CVEs
+
+# -- Host-hardening packages only (the dev toolchain is installed by core-build)
+packages:
+  - ufw
+  - unattended-upgrades
+
+write_files:
+  # -- SSH hardening ----------------------------------------------------------
+  # No passwords, no root login, no X11 forwarding. The only credential that can
+  # authenticate is the Entra-issued certificate.
+  - path: /etc/ssh/sshd_config.d/10-azure-dev-terminal.conf
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+
+  # -- Unattended security upgrades -------------------------------------------
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  - path: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    permissions: '0644'
+    content: |
+      // Throwaway VM: apply security updates automatically, do not auto-reboot.
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+  # -- Core build (inlined) ---------------------------------------------------
+  # The entire core-build/ tree, tar+gzip+base64'd by provision.sh. Extracted and
+  # run below. Keeps this overlay thin and the deployed file self-contained.
+  - path: /var/lib/azure-dev-terminal/core-build.tgz
+    permissions: '0600'
+    encoding: b64
+    content: __COREBUILD_B64__
+
+runcmd:
+  # --- SSH + host firewall ---------------------------------------------------
+  - systemctl restart ssh || systemctl restart sshd || true
+  - ufw --force default deny incoming
+  - ufw --force default allow outgoing
+  - ufw allow 22/tcp
+  - ufw --force enable
+
+  # --- Run the platform-agnostic core build (stages into /etc/skel) ----------
+  # Run it fail-loud: on failure, drop a sentinel and a clear marker so a broken
+  # build is unmistakable in the serial console / cloud-init log instead of being
+  # masked by the success final_message below (runcmd does not abort on error).
+  - mkdir -p /var/lib/azure-dev-terminal/core-build
+  - tar xzf /var/lib/azure-dev-terminal/core-build.tgz -C /var/lib/azure-dev-terminal/core-build
+  - chmod +x /var/lib/azure-dev-terminal/core-build/install.sh
+  - bash -c '/var/lib/azure-dev-terminal/core-build/install.sh --target-dir /etc/skel || { echo "FAILED" > /var/lib/azure-dev-terminal/core-build.status; echo "[azure-dev-terminal] CORE BUILD FAILED -- see /var/log/cloud-init-output.log" >&2; exit 1; }'
+  - bash -c 'test -f /var/lib/azure-dev-terminal/core-build.status || echo OK > /var/lib/azure-dev-terminal/core-build.status'
+
+  # --- Lock down the local admin account (__ADMIN__) -------------------------
+  # The throwaway key used by `az vm create` is removed, the account password is
+  # locked, and sudo is dropped. After this, the ONLY way in is Entra ID SSH; the
+  # only sudo path is the Entra "Virtual Machine Administrator Login" RBAC role.
+  - bash -c 'truncate -s 0 /home/__ADMIN__/.ssh/authorized_keys 2>/dev/null || true'
+  - passwd -l __ADMIN__ || true
+  - gpasswd -d __ADMIN__ sudo 2>/dev/null || true
+  - rm -f /etc/sudoers.d/90-cloud-init-users
+
+final_message: "azure-dev-terminal core build finished after $UPTIME s"
