@@ -31,3 +31,6 @@ known_hosts
 .DS_Store
 *.swp
 *~
+
+# Local screenshots dropped at the repo root (e.g. by sendscreenshot.sh)
+screenshot-*.png
