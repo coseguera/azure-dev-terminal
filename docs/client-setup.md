@@ -9,7 +9,9 @@ connect, sync files, and keep a session alive across disconnects.
 
 1. **Azure CLI + the `ssh` extension** -- the only thing that must be installed to
    connect. The helpers install the `ssh` extension automatically on first run.
-2. **A truecolor terminal** -- required for the theme to render correctly.
+2. **A truecolor terminal** -- required for the theme to render correctly. For
+   clipboard sync (a Neovim/tmux yank reaching your laptop over SSH), it also
+   needs to support **OSC 52** clipboard passthrough; most modern terminals do.
 3. **A Nerd Font** -- required for icons/glyphs in LazyVim, lualine, and the file
    tree. Set it as your terminal's font.
 
@@ -28,8 +30,10 @@ brew install azure-cli
 brew install --cask font-jetbrains-mono-nerd-font
 ```
 
-- **Terminal:** the stock Terminal.app is truecolor on recent macOS; iTerm2 or
-  Ghostty also work well. Set the terminal font to the Nerd Font you installed.
+- **Terminal:** use a truecolor terminal that also supports **OSC 52** clipboard
+  passthrough so yanks sync to your Mac clipboard over SSH (most modern
+  terminals do; the stock Terminal.app renders truecolor but does **not** support
+  OSC 52). Set the terminal font to the Nerd Font you installed.
 - Connect with `./connect.sh` (see below).
 
 ## Linux
@@ -76,7 +80,7 @@ From the repo directory:
 The helper starts the VM if it is deallocated, requests Just-in-Time access for
 port 22 from your current source, then opens an Entra ID SSH session. You land in a
 shell; start the editor with `nvim`, and toggle a floating terminal inside it with
-`Ctrl+/` (fallback `Ctrl+t`) to run `copilot`. To skip the shell and land straight in
+`Ctrl+/` to run `copilot`. To skip the shell and land straight in
 nvim, use **dev mode** (below).
 
 ### Networks behind a multi-range NAT pool
@@ -159,6 +163,23 @@ open (e.g. a connect session running).
 Options: `--delete` (mirror deletions) and `--dry-run` (preview). On Windows these
 are `-Delete` and `-DryRun`. Files land owned by your Entra login user on the VM.
 
+### Sending a clipboard screenshot
+
+`sendscreenshot.sh` / `sendscreenshot.ps1` upload a screenshot that is **already on
+your local clipboard** to a directory on the VM, then print the VM path to
+`@`-mention in the Copilot CLI. They only proceed if the clipboard holds an image
+(copied text or a copied file is refused), leave the clipboard untouched, and reuse
+the same access/transport as `sync` (so `-p` / `-NetworkProfile` work the same way).
+
+```sh
+# take a screenshot to the clipboard, then:
+./sendscreenshot.sh dev/shots                 # -> dev/shots/screenshot-<timestamp>.png
+./sendscreenshot.ps1 dev/shots -p nat
+```
+
+On Linux this needs `wl-paste` (Wayland) or `xclip` (X11); on macOS it works with no
+extra install (optionally faster with `pngpaste`).
+
 ---
 
 ## Keeping a session alive (tmux)
@@ -203,7 +224,7 @@ tmux commands start with the **prefix** `Ctrl+b`, released, then a key:
 | `Ctrl+b` `?` | list all key bindings |
 
 > Inside LazyVim you usually don't need tmux panes -- use the editor's own splits and
-> the `Ctrl+/` terminal (fallback `Ctrl+t`). tmux earns its keep as the **outer** layer
+> the `Ctrl+/` terminal. tmux earns its keep as the **outer** layer
 > that survives disconnects and lets you run long jobs in a separate window.
 
 ### Managing sessions

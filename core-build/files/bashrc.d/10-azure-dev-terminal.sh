@@ -6,4 +6,4 @@ case ":$PATH:" in
   *":/usr/local/bin:"*) ;;
   *) export PATH="/usr/local/bin:$PATH" ;;
 esac
-# Copilot CLI terminal toggle inside LazyVim is <C-/> (fallback <C-t>).
+# Copilot CLI terminal toggle inside LazyVim is <C-/>.

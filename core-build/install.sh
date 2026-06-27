@@ -176,6 +176,9 @@ if [ ! -e "$SKEL_NVIM/init.lua" ]; then
   mkdir -p "$SKEL_NVIM/lua/plugins"
   install -m 0644 "$FILES_DIR/nvim/lua/plugins/snacks.lua" \
     "$SKEL_NVIM/lua/plugins/snacks.lua"
+  # Override options.lua to route yanks through the OSC 52 system clipboard.
+  install -m 0644 "$FILES_DIR/nvim/lua/config/options.lua" \
+    "$SKEL_NVIM/lua/config/options.lua"
 fi
 
 # --- Normalize ownership/permissions of the staged paths ---------------------

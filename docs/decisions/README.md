@@ -12,5 +12,6 @@ Consequences. They are written fresh for `azure-dev-terminal` and kept generic.
 | [0004](0004-separable-core-build.md) | A separable, platform-agnostic core build |
 | [0005](0005-host-hardening.md) | Host hardening baseline |
 | [0006](0006-session-persistence-tmux.md) | Session persistence via tmux |
+| [0007](0007-clipboard-over-ssh-osc52.md) | Clipboard over SSH via OSC 52 |
 
 Status values: **Accepted** (in effect), **Superseded** (replaced by a later ADR).

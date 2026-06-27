@@ -102,9 +102,7 @@ without the tunnel, the helper is plain `az ssh`, which is trivially cross-platf
 
 ### Carries over (core build layer)
 
-- **LazyVim** (idempotent clone) with the snacks `<C-/>` large-float terminal, plus a
-  terminal-agnostic toggle fallback (`<C-t>`) for clients that can't
-  send `<C-/>`.
+- **LazyVim** (idempotent clone) with the snacks `<C-/>` large-float terminal.
 - **Tokyo Night** theme + **JetBrainsMono Nerd Font** glyph expectation (rendered
   client-side).
 - **Copilot CLI** via **system-wide Node** (NodeSource), installed globally.
@@ -246,8 +244,8 @@ Nothing to install on the VM for rendering. Ensure the *operator's* terminal has
 Nerd Font + truecolor; document client setup per OS rather than provisioning it on the
 VM:
 
-- **macOS:** a truecolor terminal (e.g. iTerm2/Ghostty or the stock Terminal) + a
-  Homebrew-installed Nerd Font.
+- **macOS:** a truecolor, OSC 52-capable terminal + a Homebrew-installed Nerd
+  Font.
 - **Linux:** most modern terminals are truecolor; install a Nerd Font via the package
   manager or font files.
 - **Windows:** Windows Terminal (truecolor, supports Nerd Fonts) + an installed Nerd
@@ -333,7 +331,7 @@ Cost control is governed by one coupled rule:
 6. **Token-storage validation** -- confirm `copilot` login persists across SSH sessions
    headless (file token under `~/.copilot`), with no keyring.
 7. **Client setup doc (per OS)** -- Azure CLI + ssh extension, Nerd Font + truecolor
-   terminal for macOS/Linux/Windows, the `<C-/>` / fallback toggle note (no VM-side
+   terminal for macOS/Linux/Windows, the `<C-/>` toggle note (no VM-side
    rendering), and a **session persistence (tmux)** note: reattach with `ta` after a
    dropped connection; survives disconnects but not VM deallocation/recreate.
 8. **ADRs + agent docs** -- a fresh `docs/decisions/` (one ADR per key decision) plus a
@@ -427,7 +425,7 @@ Cost control is governed by one coupled rule:
 - [x] **build-vault** -- *(re-scoped)* Confirmed Copilot file-token under `~/.copilot`
       persists headless; no keyring wiring needed.
 - [x] **build-clientdoc** -- Per-OS client setup doc (Azure CLI + ssh ext, Nerd Font,
-      truecolor terminal, `<C-/>` / fallback toggle) for macOS/Linux/Windows. Includes a
+      truecolor terminal, `<C-/>` toggle) for macOS/Linux/Windows. Includes a
       **Session persistence (tmux)** section.
 - [x] **build-adr** -- `docs/decisions/` ADRs: 0001 access model, 0002 editor/tooling,
       0003 VM sizing/lifecycle, 0004 separable core build, 0005 host hardening, 0006

@@ -20,9 +20,12 @@ return {
         mode = { "n", "t" },
       },
       {
-        "<C-t>",
+        -- Same physical Ctrl+/ key: terminals deliver it as the legacy byte
+        -- 0x1f (<C-_>) when the modern key protocol isn't negotiated (e.g.
+        -- through tmux with extended-keys off). Map it so Ctrl+/ works there too.
+        "<C-_>",
         function() Snacks.terminal() end,
-        desc = "Toggle Terminal (fallback)",
+        desc = "Toggle Terminal (Ctrl+/ legacy byte)",
         mode = { "n", "t" },
       },
       {

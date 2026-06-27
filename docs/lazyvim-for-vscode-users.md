@@ -132,7 +132,7 @@ From a plain shell you also get pretty diffs for free thanks to delta:
 `git diff`, `git show HEAD`, `git log -p` are all syntax-highlighted and side-by-side.
 
 ### Work with the Copilot CLI
-Toggle the floating terminal with `Ctrl+/` (fallback `Ctrl+t`) and run
+Toggle the floating terminal with `Ctrl+/` and run
 `copilot`. Because it's a terminal split, you can ask it to make changes, then jump back to the
 editor (`Ctrl+/` again) to review them with the LSP and lazygit. (LazyVim also provides
 `<leader>ft` / `<leader>fT` under the **file/find** menu to open a terminal in the root dir / cwd.)
@@ -193,10 +193,10 @@ You don't need all of Vim, but these motions make editing feel fast. In **Normal
 The pattern is **verb + motion**: `d` (delete) + `w` (word) = `dw`. `y` (yank) + `$` = copy to
 end of line. Learn a few verbs (`d`, `c`, `y`) and a few motions and they combine.
 
-> **Getting yanked text onto your local machine**: yanking in Neovim copies to the *VM's*
-> clipboard, which doesn't automatically reach your laptop over SSH. Easiest options: select
-> with the mouse and use your terminal's native copy, or use a terminal that supports OSC 52
-> clipboard passthrough.
+> **Getting yanked text onto your local machine**: with an OSC 52-capable
+> terminal (most modern terminals), yanking in Neovim syncs to your laptop
+> clipboard automatically over SSH -- a plain `y` and then paste on your laptop
+> just works.
 
 ---
 
