@@ -146,7 +146,7 @@ lazygit.
 > [client setup](client-setup.md#copying-text-out-of-the-terminal) and
 > [ADR 0008](decisions/0008-copilot-in-tmux-window.md).
 
-The `Ctrl+/` floating terminal is still useful as a **convenience** terminal -- a quick shell
+The `Ctrl+/` terminal is still useful as a **convenience** terminal -- a quick shell
 or a test run without leaving the editor. (LazyVim also provides `<leader>ft` / `<leader>fT`
 under the **file/find** menu to open a terminal in the root dir / cwd.) A plain `Ctrl+/`
 toggles terminal **1**; prefix a count (`2 Ctrl+/`, `3 Ctrl+/`, ...) to open additional ones.

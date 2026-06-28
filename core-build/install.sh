@@ -173,9 +173,6 @@ if [ ! -e "$SKEL_NVIM/init.lua" ]; then
   git clone --depth 1 https://github.com/LazyVim/starter "$SKEL_NVIM" \
     || die "LazyVim starter clone failed"
   rm -rf "$SKEL_NVIM/.git"
-  mkdir -p "$SKEL_NVIM/lua/plugins"
-  install -m 0644 "$FILES_DIR/nvim/lua/plugins/snacks.lua" \
-    "$SKEL_NVIM/lua/plugins/snacks.lua"
   # Override options.lua to route yanks through the OSC 52 system clipboard.
   install -m 0644 "$FILES_DIR/nvim/lua/config/options.lua" \
     "$SKEL_NVIM/lua/config/options.lua"

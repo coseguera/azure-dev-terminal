@@ -40,7 +40,7 @@ files/
   gitconfig                      -> <target>/.gitconfig
   bashrc.d/10-azure-dev-terminal.sh -> <target>/.bashrc.d/
   lazygit/config.yml             -> <target>/.config/lazygit/config.yml
-  nvim/lua/plugins/snacks.lua    -> dropped into the LazyVim config
+  nvim/lua/config/options.lua    -> overrides LazyVim options (OSC 52 clipboard)
 ```
 
 ## How platforms consume it

@@ -102,7 +102,7 @@ without the tunnel, the helper is plain `az ssh`, which is trivially cross-platf
 
 ### Carries over (core build layer)
 
-- **LazyVim** (idempotent clone) with the snacks `<C-/>` large-float terminal.
+- **LazyVim** (idempotent clone) with the stock `<C-/>` terminal toggle.
 - **Tokyo Night** theme + **JetBrainsMono Nerd Font** glyph expectation (rendered
   client-side).
 - **Copilot CLI** via **system-wide Node** (NodeSource), installed globally.
@@ -148,7 +148,7 @@ core-build/                 # reusable, OS-aware (Debian/Ubuntu, multi-arch), Az
   install.sh                #   standalone + idempotent; TARGET-DIR param (default /etc/skel,
                             #   overridable to a real $HOME). Runnable by ANYTHING: cloud-init
                             #   runcmd, a manual SSH session, Ansible, etc. -- NOT cloud-init-dependent.
-  files/                    #   .tmux.conf, .gitconfig, .bashrc.d/*.sh, lazygit theme, snacks.lua
+  files/                    #   .tmux.conf, .gitconfig, .bashrc.d/*.sh, lazygit theme, nvim options
 cloud-init/
   azure/custom-data.example #   THIN Azure/Entra overlay: SSH hardening, ufw,
                             #   unattended-upgrades, pam_mkhomedir, __ADMIN__ lockdown,
