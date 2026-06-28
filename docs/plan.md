@@ -52,10 +52,19 @@ fix end-to-end on a fresh boot. Full toolchain verified on the live VM:
 `custom-data.example` that references `pam_mkhomedir` is a conceptual description, not a
 literal PAM config.
 
+**Update -- core build extracted to `dev-machine`.** `core-build/` has been moved to
+its own repo, [`dev-machine`](https://github.com/coseguera/dev-machine), a
+platform-agnostic, flag-driven installer (flags for Copilot/Node, LazyVim Mason &
+Treesitter, local console via cage+foot, and an i3+browser desktop). This repo now
+consumes it as a **git submodule** mounted at `core-build/`; `provision.sh` inlines the
+submodule and invokes `install.sh` with no flags (full toolchain, no GUI -- identical to
+the validated runs above). See [ADR 0009](decisions/0009-core-build-in-dev-machine-repo.md).
+Clone with `--recurse-submodules`.
+
 **Next action:** project is feature-complete. Tear down the VM (billing). Any future
 work is incremental improvement: additional OS validation for `feas-crossplatform`
 (currently validated on one OS), adding a themed prompt (Starship/oh-my-posh) if desired,
-or consuming `core-build/` from a future `local-dev-machine` rewrite.
+or validating the new `dev-machine` flags on real Pi hardware (Zero 2 W / rpi4 / rpi5).
 
 ## 1. Problem statement & goals
 

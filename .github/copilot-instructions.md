@@ -6,9 +6,12 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
 
 ## Architecture in one screen
 
-- **`core-build/`** -- platform-agnostic installer (`install.sh` + `files/`). Azure-
+- **`core-build/`** -- a **git submodule** of the `dev-machine` repo: the
+  platform-agnostic, flag-driven installer (`install.sh` + `files/`). Azure-
   unaware; installs the toolchain and stages dotfiles into `--target-dir` (default
-  `/etc/skel`). Reusable on any Debian/Ubuntu host. (ADR 0004)
+  `/etc/skel`). Reusable on any Debian/Ubuntu host. Azure invokes it with no flags
+  (full toolchain, no GUI). Run `git submodule update --init` after cloning.
+  (ADR 0004, ADR 0009)
 - **`cloud-init/azure/custom-data.example`** -- thin Azure overlay. Inlines the whole
   `core-build/` tree (base64) and invokes `install.sh`, then adds Azure-only steps.
 - **`provision.sh`** -- assembly + access layer: renders `custom-data` (inlines
