@@ -244,6 +244,40 @@ indefinitely until the VM is rebooted or stopped. Disconnecting saves nothing on
 cost; it only ends your terminal. To actually stop billing for compute you must
 deallocate or delete the VM (see the provisioning docs).
 
+## Copying text out of the terminal
+
+Copying from a remote TUI over SSH has two distinct paths; which one to use
+depends on what you are copying.
+
+**Copilot CLI output -- run it in its own tmux window/pane, not inside the
+editor's terminal.** When the Copilot CLI runs nested inside the editor's
+floating `Ctrl+/` terminal, its clipboard copy (an OSC 52 escape) is not
+forwarded cleanly through the embedded terminal layer -- it leaks onto the
+screen as a burst of base64 gibberish near the prompt (it clears as soon as you
+type) and nothing reaches your clipboard. Running the Copilot CLI **directly in a
+tmux window** (e.g. `Ctrl+b c` for a new window, then `copilot`) avoids the extra
+layer: its copy then travels `Copilot -> tmux -> terminal` and lands on your
+local clipboard as clean, reflowed text (no borders, no per-line wraps).
+
+> Known upstream Copilot CLI quirk: when it reflows soft-wrapped output for
+> copying, the space at a wrap boundary can be dropped, gluing two words together
+> (e.g. `copies borders` -> `copiesborders`). Reported upstream; nothing to fix in
+> this repo.
+
+**Any other terminal text (shell output, a bordered TUI, the editor) -- use the
+terminal's own selection with Shift held.** A plain mouse drag is captured by the
+application's mouse mode (tmux/editor/CLI), which suppresses native selection, so
+your terminal's copy shortcut grabs nothing. Hold **Shift while dragging** to
+force the terminal's own selection (bypassing mouse mode), then copy with your
+terminal's shortcut (`Cmd+C` on macOS, typically `Ctrl+Shift+C` on Linux). This
+copies the literal on-screen grid, so a bordered panel includes its border
+characters and every visual wrap becomes a hard newline -- drag within the text
+columns to avoid the gutter.
+
+**For anything you need pristine (code, long passages), prefer a file.** Have the
+Copilot CLI write the content to a file on the VM, then open it or pull it down
+with `sync` -- no grid artifacts, borders, or wrap newlines.
+
 ## Next: learning the editor
 
 New to Neovim/LazyVim coming from VS Code? See
