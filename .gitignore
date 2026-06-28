@@ -32,5 +32,7 @@ known_hosts
 *.swp
 *~
 
-# Local screenshots dropped at the repo root (e.g. by sendscreenshot.sh)
+# Local screenshots dropped at the repo root (e.g. by sendscreenshot.sh).
+# A root .ignore re-includes these for ripgrep/fd (Copilot @-picker, nvim
+# explorer) without un-ignoring them for git.
 screenshot-*.png

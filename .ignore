@@ -1,0 +1,5 @@
+# .ignore -- read by ripgrep/fd (NOT git). Re-include local screenshots so the
+# Copilot @-picker and the nvim file explorer can see them, while .gitignore
+# still keeps them out of commits. Keep this scoped: a broad negation here would
+# re-expose the host-specific/secret files that .gitignore protects.
+!screenshot-*.png
