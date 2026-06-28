@@ -9,7 +9,9 @@ connect, sync files, and keep a session alive across disconnects.
 
 1. **Azure CLI + the `ssh` extension** -- the only thing that must be installed to
    connect. The helpers install the `ssh` extension automatically on first run.
-2. **A truecolor terminal** -- required for the theme to render correctly.
+2. **A truecolor terminal** -- required for the theme to render correctly. For
+   clipboard sync (a Neovim/tmux yank reaching your laptop over SSH), it also
+   needs to support **OSC 52** clipboard passthrough; most modern terminals do.
 3. **A Nerd Font** -- required for icons/glyphs in LazyVim, lualine, and the file
    tree. Set it as your terminal's font.
 
@@ -28,8 +30,10 @@ brew install azure-cli
 brew install --cask font-jetbrains-mono-nerd-font
 ```
 
-- **Terminal:** the stock Terminal.app is truecolor on recent macOS; iTerm2 or
-  Ghostty also work well. Set the terminal font to the Nerd Font you installed.
+- **Terminal:** use a truecolor terminal that also supports **OSC 52** clipboard
+  passthrough so yanks sync to your Mac clipboard over SSH (most modern
+  terminals do; the stock Terminal.app renders truecolor but does **not** support
+  OSC 52). Set the terminal font to the Nerd Font you installed.
 - Connect with `./connect.sh` (see below).
 
 ## Linux
@@ -75,9 +79,13 @@ From the repo directory:
 
 The helper starts the VM if it is deallocated, requests Just-in-Time access for
 port 22 from your current source, then opens an Entra ID SSH session. You land in a
-shell; start the editor with `nvim`, and toggle a floating terminal inside it with
-`Ctrl+/` (fallback `Ctrl+t`) to run `copilot`. To skip the shell and land straight in
-nvim, use **dev mode** (below).
+shell; run `ta` to start (or reattach) a tmux session, then run the editor with
+`nvim` in one window and the Copilot CLI in **its own tmux window** (`Ctrl+b c`
+opens a new window; run `copilot` there). Running the CLI in its own window --
+not nested in the editor's terminal -- keeps its clipboard copy working (see
+[Copying text out of the terminal](#copying-text-out-of-the-terminal)). The
+floating `Ctrl+/` terminal inside the editor is still handy for a quick shell or
+test run. To skip the shell and land straight in nvim, use **dev mode** (below).
 
 ### Networks behind a multi-range NAT pool
 
@@ -159,6 +167,23 @@ open (e.g. a connect session running).
 Options: `--delete` (mirror deletions) and `--dry-run` (preview). On Windows these
 are `-Delete` and `-DryRun`. Files land owned by your Entra login user on the VM.
 
+### Sending a clipboard screenshot
+
+`sendscreenshot.sh` / `sendscreenshot.ps1` upload a screenshot that is **already on
+your local clipboard** to a directory on the VM, then print the VM path to
+`@`-mention in the Copilot CLI. They only proceed if the clipboard holds an image
+(copied text or a copied file is refused), leave the clipboard untouched, and reuse
+the same access/transport as `sync` (so `-p` / `-NetworkProfile` work the same way).
+
+```sh
+# take a screenshot to the clipboard, then:
+./sendscreenshot.sh dev/shots                 # -> dev/shots/screenshot-<timestamp>.png
+./sendscreenshot.ps1 dev/shots -p nat
+```
+
+On Linux this needs `wl-paste` (Wayland) or `xclip` (X11); on macOS it works with no
+extra install (optionally faster with `pngpaste`).
+
 ---
 
 ## Keeping a session alive (tmux)
@@ -202,9 +227,11 @@ tmux commands start with the **prefix** `Ctrl+b`, released, then a key:
 | `Ctrl+b` `[` | enter **copy/scroll mode** (arrows/PageUp to scroll; `q` to exit) |
 | `Ctrl+b` `?` | list all key bindings |
 
-> Inside LazyVim you usually don't need tmux panes -- use the editor's own splits and
-> the `Ctrl+/` terminal (fallback `Ctrl+t`). tmux earns its keep as the **outer** layer
-> that survives disconnects and lets you run long jobs in a separate window.
+> Inside LazyVim you usually don't need tmux *panes* -- use the editor's own
+> splits. tmux **windows** are the workflow layer here: keep the editor in one
+> window and the Copilot CLI in another (`Ctrl+/` inside the editor stays a handy
+> convenience terminal). tmux is also the **outer** layer that survives
+> disconnects and lets you run long jobs in a separate window.
 
 ### Managing sessions
 
@@ -222,6 +249,40 @@ burstable) profile the VM keeps running by design, so a tmux session survives
 indefinitely until the VM is rebooted or stopped. Disconnecting saves nothing on
 cost; it only ends your terminal. To actually stop billing for compute you must
 deallocate or delete the VM (see the provisioning docs).
+
+## Copying text out of the terminal
+
+Copying from a remote TUI over SSH has two distinct paths; which one to use
+depends on what you are copying.
+
+**Copilot CLI output -- run it in its own tmux window/pane, not inside the
+editor's terminal.** When the Copilot CLI runs nested inside the editor's
+floating `Ctrl+/` terminal, its clipboard copy (an OSC 52 escape) is not
+forwarded cleanly through the embedded terminal layer -- it leaks onto the
+screen as a burst of base64 gibberish near the prompt (it clears as soon as you
+type) and nothing reaches your clipboard. Running the Copilot CLI **directly in a
+tmux window** (e.g. `Ctrl+b c` for a new window, then `copilot`) avoids the extra
+layer: its copy then travels `Copilot -> tmux -> terminal` and lands on your
+local clipboard as clean, reflowed text (no borders, no per-line wraps).
+
+> Known upstream Copilot CLI quirk: when it reflows soft-wrapped output for
+> copying, the space at a wrap boundary can be dropped, gluing two words together
+> (e.g. `copies borders` -> `copiesborders`). Reported upstream; nothing to fix in
+> this repo.
+
+**Any other terminal text (shell output, a bordered TUI, the editor) -- use the
+terminal's own selection with Shift held.** A plain mouse drag is captured by the
+application's mouse mode (tmux/editor/CLI), which suppresses native selection, so
+your terminal's copy shortcut grabs nothing. Hold **Shift while dragging** to
+force the terminal's own selection (bypassing mouse mode), then copy with your
+terminal's shortcut (`Cmd+C` on macOS, typically `Ctrl+Shift+C` on Linux). This
+copies the literal on-screen grid, so a bordered panel includes its border
+characters and every visual wrap becomes a hard newline -- drag within the text
+columns to avoid the gutter.
+
+**For anything you need pristine (code, long passages), prefer a file.** Have the
+Copilot CLI write the content to a file on the VM, then open it or pull it down
+with `sync` -- no grid artifacts, borders, or wrap newlines.
 
 ## Next: learning the editor
 

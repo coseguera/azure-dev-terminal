@@ -44,7 +44,7 @@ fix end-to-end on a fresh boot. Full toolchain verified on the live VM:
 | SSH hardening | `PasswordAuthentication no`, `PermitRootLogin no` |
 | azureuser lockout | password locked + empty `authorized_keys` -- cannot SSH |
 | `.copilot/` token | present; headless auth confirmed (no keyring) |
-| End-to-end UX | **Copilot CLI running inside the LazyVim terminal (`<C-/>`) on the live VM** |
+| End-to-end UX | **LazyVim + Copilot CLI on the live VM** (Copilot in its own tmux window; see [ADR 0008](decisions/0008-copilot-in-tmux-window.md)) |
 
 **Note on `pam_mkhomedir`:** home directory creation for Entra users is handled by the
 `pam_aad.so` module installed by the AAD SSH extension, not by an explicit
@@ -61,7 +61,7 @@ or consuming `core-build/` from a future `local-dev-machine` rewrite.
 
 Run a console-first dev environment on a **throwaway, reproducible** Azure VM whose UX
 is identical to `ssh`-ing into the Pi: connect from a stock client terminal and land
-in LazyVim with Copilot CLI on `Ctrl+/`. Keep the operator's local machine pristine --
+in LazyVim, with the Copilot CLI in its own tmux window. Keep the operator's local machine pristine --
 nothing is installed on it beyond the Azure CLI, a Nerd Font, and a truecolor terminal.
 The client experience must be the same on **macOS, Linux, and Windows**.
 
@@ -75,7 +75,7 @@ and on-demand network access rather than standing open ports.
 ### Success criteria
 
 - From a stock terminal on macOS, Linux, **or** Windows: run the connection helper ->
-  land on the VM -> `nvim` -> `<C-/>` -> Copilot CLI.
+  land on the VM -> `ta` (tmux) -> `nvim` in one window and `copilot` in another.
 - Login is **Entra ID only** (ephemeral certificate); there is no usable static SSH key
   and the local admin account cannot SSH in.
 - Port 22 is **closed by default** and opened only on demand (JIT) to the operator's
@@ -102,9 +102,7 @@ without the tunnel, the helper is plain `az ssh`, which is trivially cross-platf
 
 ### Carries over (core build layer)
 
-- **LazyVim** (idempotent clone) with the snacks `<C-/>` large-float terminal, plus a
-  terminal-agnostic toggle fallback (`<C-t>`) for clients that can't
-  send `<C-/>`.
+- **LazyVim** (idempotent clone) with the stock `<C-/>` terminal toggle.
 - **Tokyo Night** theme + **JetBrainsMono Nerd Font** glyph expectation (rendered
   client-side).
 - **Copilot CLI** via **system-wide Node** (NodeSource), installed globally.
@@ -150,7 +148,7 @@ core-build/                 # reusable, OS-aware (Debian/Ubuntu, multi-arch), Az
   install.sh                #   standalone + idempotent; TARGET-DIR param (default /etc/skel,
                             #   overridable to a real $HOME). Runnable by ANYTHING: cloud-init
                             #   runcmd, a manual SSH session, Ansible, etc. -- NOT cloud-init-dependent.
-  files/                    #   .tmux.conf, .gitconfig, .bashrc.d/*.sh, lazygit theme, snacks.lua
+  files/                    #   .tmux.conf, .gitconfig, .bashrc.d/*.sh, lazygit theme, nvim options
 cloud-init/
   azure/custom-data.example #   THIN Azure/Entra overlay: SSH hardening, ufw,
                             #   unattended-upgrades, pam_mkhomedir, __ADMIN__ lockdown,
@@ -246,8 +244,8 @@ Nothing to install on the VM for rendering. Ensure the *operator's* terminal has
 Nerd Font + truecolor; document client setup per OS rather than provisioning it on the
 VM:
 
-- **macOS:** a truecolor terminal (e.g. iTerm2/Ghostty or the stock Terminal) + a
-  Homebrew-installed Nerd Font.
+- **macOS:** a truecolor, OSC 52-capable terminal + a Homebrew-installed Nerd
+  Font.
 - **Linux:** most modern terminals are truecolor; install a Nerd Font via the package
   manager or font files.
 - **Windows:** Windows Terminal (truecolor, supports Nerd Fonts) + an installed Nerd
@@ -333,7 +331,8 @@ Cost control is governed by one coupled rule:
 6. **Token-storage validation** -- confirm `copilot` login persists across SSH sessions
    headless (file token under `~/.copilot`), with no keyring.
 7. **Client setup doc (per OS)** -- Azure CLI + ssh extension, Nerd Font + truecolor
-   terminal for macOS/Linux/Windows, the `<C-/>` / fallback toggle note (no VM-side
+   terminal for macOS/Linux/Windows, the tmux-window workflow + `Ctrl+/` convenience-terminal
+   note (no VM-side
    rendering), and a **session persistence (tmux)** note: reattach with `ta` after a
    dropped connection; survives disconnects but not VM deallocation/recreate.
 8. **ADRs + agent docs** -- a fresh `docs/decisions/` (one ADR per key decision) plus a
@@ -427,7 +426,7 @@ Cost control is governed by one coupled rule:
 - [x] **build-vault** -- *(re-scoped)* Confirmed Copilot file-token under `~/.copilot`
       persists headless; no keyring wiring needed.
 - [x] **build-clientdoc** -- Per-OS client setup doc (Azure CLI + ssh ext, Nerd Font,
-      truecolor terminal, `<C-/>` / fallback toggle) for macOS/Linux/Windows. Includes a
+      truecolor terminal, `<C-/>` toggle) for macOS/Linux/Windows. Includes a
       **Session persistence (tmux)** section.
 - [x] **build-adr** -- `docs/decisions/` ADRs: 0001 access model, 0002 editor/tooling,
       0003 VM sizing/lifecycle, 0004 separable core build, 0005 host hardening, 0006

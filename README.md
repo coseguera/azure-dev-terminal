@@ -2,8 +2,8 @@
 
 Console-first, **SSH-only Azure dev VM** running **LazyVim + Copilot CLI** -- no
 desktop environment, no VNC. A small, throwaway, reproducible cloud box whose UX is
-just: open a stock terminal, connect, and land in LazyVim with Copilot CLI on
-`Ctrl+/`. Works from **macOS, Linux, and Windows**.
+just: open a stock terminal, connect, and land in LazyVim, with the Copilot CLI a
+tmux window away. Works from **macOS, Linux, and Windows**.
 
 The theme (Tokyo Night) and Nerd Font glyphs render in **your local terminal** over
 SSH, so the VM installs nothing for display.
