@@ -12,8 +12,9 @@ tools instead of VS Code. Everything here is pre-installed by the core build:
 - **[git-delta](https://github.com/dandavison/delta)** -- syntax-highlighted, side-by-side
   `git diff` / `git show` / `git log -p` (wired in as git's pager).
 - **ripgrep / fd / fzf** -- fast text and file search that power LazyVim's pickers.
-- **[Copilot CLI](https://github.com/github/copilot-cli)** -- the agentic AI assistant. Open a
-  floating terminal inside Neovim with `Ctrl+/` and run `copilot` alongside your editor.
+- **[Copilot CLI](https://github.com/github/copilot-cli)** -- the agentic AI assistant. Run
+  `copilot` in its own **tmux window** alongside the editor (see [Work with the Copilot
+  CLI](#work-with-the-copilot-cli)).
 
 > This box is **console-only** -- there is no desktop, no VS Code, no VNC. The whole point is a
 > fast, terminal-native workflow that pairs naturally with the Copilot CLI. See
@@ -79,7 +80,7 @@ This is how you *discover* LazyVim -- just press `Space` and read. Two especiall
 | `Ctrl/Cmd+Shift+F` Search in files | `Space /` (or `Space s g`) | live grep (ripgrep) |
 | `Ctrl/Cmd+Shift+E` Explorer | `Space e` | toggles the Neo-tree file explorer |
 | `Ctrl/Cmd+Shift+P` Command Palette | `Space` (which-key) or `:` | discover/run commands |
-| Toggle Terminal | `Ctrl+/` | floating terminal (run `copilot` here) |
+| Toggle Terminal | `Ctrl+/` | floating terminal for a quick shell / test run |
 | `F12` Go to Definition | `g d` | |
 | `Shift+F12` References | `g r` | |
 | Hover docs | `K` | (capital K) |
@@ -132,45 +133,33 @@ From a plain shell you also get pretty diffs for free thanks to delta:
 `git diff`, `git show HEAD`, `git log -p` are all syntax-highlighted and side-by-side.
 
 ### Work with the Copilot CLI
-Toggle the floating terminal with `Ctrl+/` and run
-`copilot`. Because it's a terminal split, you can ask it to make changes, then jump back to the
-editor (`Ctrl+/` again) to review them with the LSP and lazygit. (LazyVim also provides
-`<leader>ft` / `<leader>fT` under the **file/find** menu to open a terminal in the root dir / cwd.)
+Run the Copilot CLI in **its own tmux window**, not nested in the editor's terminal. From
+your tmux session (`ta`), open a new window with `Ctrl+b c`, run `copilot` there, and switch
+between it and the editor window with `Ctrl+b n` / `Ctrl+b p` (or `Ctrl+b <number>`). Ask the
+CLI to make changes, then switch back to the editor window to review them with the LSP and
+lazygit.
 
-**How the terminal toggle picks a terminal.** The toggle does not track "the terminal I'm
-looking at." On every press it computes an **id** from `cmd` + `cwd` + `env` +
-**count** (`vim.v.count1`), and shows/hides the terminal matching that id. In this config only
-the **count** varies the id, so:
+> **Why a tmux window and not the `Ctrl+/` float?** The CLI copies via OSC 52, and Neovim's
+> embedded `:terminal` does not forward that escape cleanly -- run inside the float, the CLI's
+> copy leaks onto the screen as base64 and never reaches your clipboard. One layer shallower
+> (under tmux directly) it copies fine. See
+> [client setup](client-setup.md#copying-text-out-of-the-terminal) and
+> [ADR 0008](decisions/0008-copilot-in-tmux-window.md).
 
-- `Ctrl+/` (no count) always toggles terminal **1**.
-- `2 Ctrl+/`, `3 Ctrl+/`, ... open/toggle terminals **2**, **3**, ... -- that's how you
-  deliberately keep two terminals at once (e.g. `copilot` in one, test runs in another).
-
-> **The swap trap.** If terminal 1 is showing and you open terminal 2 (`2 Ctrl+/`), *both* are
-> now "shown" (2's float sits on top). A plain `Ctrl+/` only toggles terminal **1**, so it
-> ping-pongs 1's visibility while 2 stays up -- you never fall back to your buffers. A count-1
-> toggle cannot dismiss the count-2 terminal.
->
-> **Always-get-back-to-buffers keys** (work on the *focused* float regardless of id):
-> `Esc Esc` to enter Normal mode inside the float, then `q` to hide it. Repeat for each float
-> still open, or dismiss each by its own count (`2 Ctrl+/`). To see how many exist:
-> `<leader>fL` ("List terminals", under LazyVim's **file/find** menu).
+The `Ctrl+/` floating terminal is still useful as a **convenience** terminal -- a quick shell
+or a test run without leaving the editor. (LazyVim also provides `<leader>ft` / `<leader>fT`
+under the **file/find** menu to open a terminal in the root dir / cwd.) A plain `Ctrl+/`
+toggles terminal **1**; prefix a count (`2 Ctrl+/`, `3 Ctrl+/`, ...) to open additional ones.
 
 **Expanding collapsed Copilot CLI output (`Ctrl+O`).** The CLI's timeline collapses long tool
-output (e.g. "36 lines read"). Clicking it to expand needs the **mouse click to reach the CLI**,
-but Neovim (`mouse=a`) only forwards clicks to the float while you're in **terminal mode** -- if
-you pressed `Esc Esc` into Normal mode, the click selects Neovim text instead and nothing
-expands. The keyboard way avoids this entirely:
-
-- **`Ctrl+O`** (or `Ctrl+E`) -- "expand all timeline" in the Copilot CLI. A keystroke passes
-  straight through to the CLI, so it works regardless of mouse mode.
-- If you prefer the mouse, click **into** the float first (re-enter terminal mode), then click
-  the collapsed item.
+output (e.g. "36 lines read"). Press **`Ctrl+O`** (or `Ctrl+E`) in the CLI to "expand all
+timeline" -- a keystroke that works regardless of mouse mode.
 
 ### Windows, buffers, terminal
 - Open files become **buffers**; cycle with `Shift+h` / `Shift+l`, close with `Space b d`.
 - Split the view: `Space \|` / `Space -`; move focus with `Ctrl+h/j/k/l`.
-- Toggle a terminal with `Ctrl+/` (great for running tests or `copilot` alongside the editor).
+- Toggle a convenience terminal with `Ctrl+/` (handy for a quick shell or test run; run the
+  Copilot CLI in its own tmux window instead).
 
 ---
 
@@ -235,6 +224,6 @@ CODE         gd def   K hover   Space ca action   Space cr rename   Space cf for
 DIAGNOSTICS  ]d / [d next/prev    Space xx (Trouble panel)
 GIT          Space gg (lazygit)
 BUFFERS      Shift+h / Shift+l switch    Space bd close
-WINDOWS      Space | / Space -  split    Ctrl+h/j/k/l  move    Ctrl+/ terminal (copilot)
+WINDOWS      Space | / Space -  split    Ctrl+h/j/k/l  move    Ctrl+/ terminal (quick shell)
 HELP         :Tutor   Space sk (search keymaps)   ? inside lazygit
 ```

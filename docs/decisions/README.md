@@ -13,5 +13,6 @@ Consequences. They are written fresh for `azure-dev-terminal` and kept generic.
 | [0005](0005-host-hardening.md) | Host hardening baseline |
 | [0006](0006-session-persistence-tmux.md) | Session persistence via tmux |
 | [0007](0007-clipboard-over-ssh-osc52.md) | Clipboard over SSH via OSC 52 |
+| [0008](0008-copilot-in-tmux-window.md) | Run the Copilot CLI in its own tmux window |
 
 Status values: **Accepted** (in effect), **Superseded** (replaced by a later ADR).

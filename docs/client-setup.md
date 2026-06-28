@@ -79,9 +79,13 @@ From the repo directory:
 
 The helper starts the VM if it is deallocated, requests Just-in-Time access for
 port 22 from your current source, then opens an Entra ID SSH session. You land in a
-shell; start the editor with `nvim`, and toggle a floating terminal inside it with
-`Ctrl+/` to run `copilot`. To skip the shell and land straight in
-nvim, use **dev mode** (below).
+shell; run `ta` to start (or reattach) a tmux session, then run the editor with
+`nvim` in one window and the Copilot CLI in **its own tmux window** (`Ctrl+b c`
+opens a new window; run `copilot` there). Running the CLI in its own window --
+not nested in the editor's terminal -- keeps its clipboard copy working (see
+[Copying text out of the terminal](#copying-text-out-of-the-terminal)). The
+floating `Ctrl+/` terminal inside the editor is still handy for a quick shell or
+test run. To skip the shell and land straight in nvim, use **dev mode** (below).
 
 ### Networks behind a multi-range NAT pool
 
@@ -223,9 +227,11 @@ tmux commands start with the **prefix** `Ctrl+b`, released, then a key:
 | `Ctrl+b` `[` | enter **copy/scroll mode** (arrows/PageUp to scroll; `q` to exit) |
 | `Ctrl+b` `?` | list all key bindings |
 
-> Inside LazyVim you usually don't need tmux panes -- use the editor's own splits and
-> the `Ctrl+/` terminal. tmux earns its keep as the **outer** layer
-> that survives disconnects and lets you run long jobs in a separate window.
+> Inside LazyVim you usually don't need tmux *panes* -- use the editor's own
+> splits. tmux **windows** are the workflow layer here: keep the editor in one
+> window and the Copilot CLI in another (`Ctrl+/` inside the editor stays a handy
+> convenience terminal). tmux is also the **outer** layer that survives
+> disconnects and lets you run long jobs in a separate window.
 
 ### Managing sessions
 
