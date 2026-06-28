@@ -64,7 +64,7 @@ command -v az  >/dev/null || { echo "ERROR: Azure CLI (az) not found." >&2; exit
 command -v tar >/dev/null || { echo "ERROR: tar not found." >&2; exit 1; }
 az account show >/dev/null 2>&1 || { echo "ERROR: run 'az login' first." >&2; exit 1; }
 [ -f "$OVERLAY" ]        || { echo "ERROR: overlay not found: $OVERLAY" >&2; exit 1; }
-[ -f "$COREBUILD_DIR/install.sh" ] || { echo "ERROR: core-build/install.sh not found." >&2; exit 1; }
+[ -f "$COREBUILD_DIR/install.sh" ] || { echo "ERROR: core-build/install.sh not found (run 'git submodule update --init')." >&2; exit 1; }
 
 SUB="$(az account show --query id -o tsv)"
 USER_OID="$(az ad signed-in-user show --query id -o tsv)"
@@ -73,7 +73,9 @@ echo ">> Signed-in user object id: $USER_OID"
 
 # --- Render the self-contained custom-data (inline core-build, inject admin) ---
 echo ">> Inlining core-build/ and rendering $RENDERED"
-COREBUILD_B64="$(tar czf - -C "$COREBUILD_DIR" . | base64 -w0)"
+# core-build is a git submodule (dev-machine). Exclude VCS metadata (.git gitfile,
+# .gitignore) so the inlined tarball carries only the installer + files/ payload.
+COREBUILD_B64="$(tar czf - -C "$COREBUILD_DIR" --exclude='./.git' --exclude='./.gitignore' . | base64 -w0)"
 # base64's alphabet (A-Za-z0-9+/=) contains no awk-special chars, so gsub is safe here.
 awk -v b64="$COREBUILD_B64" -v admin="$ADMIN" '
   { gsub(/__COREBUILD_B64__/, b64); gsub(/__ADMIN__/, admin); print }

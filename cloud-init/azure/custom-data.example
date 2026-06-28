@@ -19,9 +19,10 @@
 # Placeholders (substituted by provision.sh):
 #   __ADMIN__         - the local admin username from `az vm create --admin-username`
 #                       (locked out of SSH/sudo at the end of this config)
-#   __COREBUILD_B64__ - base64 of `tar czf - -C core-build .` (the whole core-build
-#                       tree), inlined here so the deployed custom-data is
-#                       self-contained with no boot-time repo dependency
+#   __COREBUILD_B64__ - base64 of the core-build submodule payload (its install.sh
+#                       + files/ tree, excluding VCS metadata), inlined here so the
+#                       deployed custom-data is self-contained with no boot-time
+#                       repo dependency
 #
 # CONSTRAINTS:
 #   - PURE ASCII ONLY. A single non-ASCII byte breaks `az vm create`

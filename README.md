@@ -37,6 +37,11 @@ core build). The full design and phased build plan live in
 
 ## Start here
 
+> **Clone with submodules.** The core build lives in the separate `dev-machine`
+> repo and is mounted here as a git submodule at `core-build/`:
+> `git clone --recurse-submodules <this repo>` (or, after a plain clone,
+> `git submodule update --init`). `provision.sh` needs it to render `custom-data`.
+
 - **Client setup (per OS):** [`docs/client-setup.md`](docs/client-setup.md)
 - **LazyVim for VS Code users:** [`docs/lazyvim-for-vscode-users.md`](docs/lazyvim-for-vscode-users.md)
 - **Plan & design:** [`docs/plan.md`](docs/plan.md)
