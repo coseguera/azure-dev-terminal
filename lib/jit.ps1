@@ -10,6 +10,7 @@
 #   Get-AdtConfig                - read the VM config (LOC/RG/VM); returns a context
 #   Resolve-AdtSource [profile]  - return @{ Src; Prefixes } (detected /32 or profile)
 #   Start-AdtVm $ctx             - start the VM if it is deallocated
+#   Stop-AdtVm $ctx              - deallocate the VM (frees compute cost; data preserved)
 #   Request-AdtJit $ctx $src [d] - request JIT access (port 22) for the source(s)
 #   Get-AdtVmIp $ctx             - return the VM's public IP
 #   Test-AdtPortOpen $ip         - $true if port 22 already reachable (JIT live)
@@ -84,6 +85,14 @@ function Start-AdtVm {
   param([pscustomobject]$Ctx)
   Write-AdtLog "Ensuring VM is running..."
   az vm start -g $Ctx.Rg -n $Ctx.Vm -o none 2>$null | Out-Null
+}
+
+# Deallocate the VM (frees all compute cost; OS disk + data preserved). Idempotent:
+# deallocating an already-stopped VM is a no-op. Restart on demand via connect.ps1.
+function Stop-AdtVm {
+  param([pscustomobject]$Ctx)
+  Write-AdtLog "Deallocating VM (compute cost stops; disk + data preserved)..."
+  az vm deallocate -g $Ctx.Rg -n $Ctx.Vm -o none
 }
 
 # Echo the VM's public IP (empty if none / VM not running). The -d lookup is slow.
