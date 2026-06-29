@@ -10,6 +10,7 @@
 #   adt_load_config           - source the VM config (LOC/RG/VM); set SUB, VM_ID
 #   adt_resolve_src [profile] - set SRC + PREFIX_JSON (detected /32 or CIDR profile)
 #   adt_start_vm              - start the VM if it is deallocated
+#   adt_stop_vm               - deallocate the VM (frees compute cost; data preserved)
 #   adt_request_jit [dur]     - request JIT access (port 22) for SRC
 #   adt_vm_ip                 - echo the VM's public IP
 #   adt_port_open <ip>        - 0 if port 22 already reachable (JIT live)
@@ -79,6 +80,13 @@ adt_resolve_src() {
 adt_start_vm() {
   adt_log "Ensuring VM is running..."
   az vm start -g "$RG" -n "$VM" -o none || true
+}
+
+# Deallocate the VM (frees all compute cost; OS disk + data preserved). Idempotent:
+# deallocating an already-stopped VM is a no-op. Restart on demand via connect.sh.
+adt_stop_vm() {
+  adt_log "Deallocating VM (compute cost stops; disk + data preserved)..."
+  az vm deallocate -g "$RG" -n "$VM" -o none
 }
 
 # Echo the VM's public IP (empty if none / VM not running). The -d lookup is slow.

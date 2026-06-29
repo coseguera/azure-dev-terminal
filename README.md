@@ -50,6 +50,11 @@ core build). The full design and phased build plan live in
 - **Running commands on the VM (validation):** [`docs/vm-validation.md`](docs/vm-validation.md)
 - **Provisioning:** `provision.sh` + `cloud-init/` -- an Azure `--custom-data` config
   that reproduces the core build on first boot.
+- **Stop / pause:** `./stop.sh [config-file]` (or `./stop.ps1`) deallocates the VM,
+  so compute billing stops while the OS disk and your data are preserved. Restart on
+  demand with `./connect.sh`. This is the cheap, reversible pause -- use it between
+  sessions on the dedicated/heavy profile rather than leaving it running. (`teardown`
+  below deletes everything.)
 - **Teardown / reset:** `./teardown.sh [config-file]` (or `./teardown.ps1`) deletes the
   resource group and the other resources provisioning creates (VM-scoped role assignment,
   JIT policy, and -- on a y/N prompt -- the subscription-wide Defender for Servers plan).
