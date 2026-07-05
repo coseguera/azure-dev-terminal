@@ -23,18 +23,15 @@ duplication ADR 0004 set out to avoid.
 
 - The core build moves to its **own repository, `dev-machine`** (private), whose root
   is the installer: `install.sh` + `files/`. It stays host/cloud-unaware.
-- The build **shape is selected by granular flags** (no profiles): `--no-copilot`,
-  `--no-node`, `--no-mason`, `--minimal-treesitter`, `--no-lazygit`, `--with-console`
-  (cage + foot), `--with-desktop` (i3 + Xorg + i3status + alacritty),
-  `--with-browser=firefox|chromium|none`.
+- The build **shape is selected by granular flags** (no profiles), documented in
+  `dev-machine`'s own `install.sh --help`.
 - `azure-dev-terminal` consumes it as a **git submodule** pinned at a commit, mounted
   at `core-build/`. `provision.sh` inlines the submodule payload (base64 tarball,
   excluding VCS metadata) exactly as before and invokes
   `install.sh --target-dir /etc/skel` with **no flags** -- so the Azure build is
   unchanged (full toolchain, no GUI).
-- Host overlays own session-launch wiring (Pi tty1 autologin -> cage+foot or
-  startx/i3; Azure provisioning). The installer only installs packages and stages
-  config.
+- Host overlays own session-launch wiring (Pi tty1 autologin, or Azure
+  provisioning). The installer only installs packages and stages config.
 
 ## Consequences
 
@@ -47,8 +44,8 @@ duplication ADR 0004 set out to avoid.
   pointer, re-validate), rather than silently drifting.
 - The LazyVim "lite" flags (`--no-mason`, `--minimal-treesitter`) stage override Lua
   specs whose exact API must be validated against the LazyVim version actually cloned.
-- The terminal for `--with-desktop` is **alacritty** (Rust, memory-safe, minimal
-  attack surface) rather than kitty (C + Python + an IPC socket), a deliberate
-  security-surface choice; `foot` stays console-only (it is Wayland-only).
+- Bumping the pin means reviewing the diff for changes to the no-flag path (packages
+  always installed, `--target-dir` staging, exit behavior) -- the only path Azure
+  exercises.
 - Inlining still requires the rendered `custom-data` to stay **ASCII-only**; the
   submodule payload is verified ASCII-clean.

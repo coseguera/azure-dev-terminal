@@ -54,8 +54,7 @@ literal PAM config.
 
 **Update -- core build extracted to `dev-machine`.** `core-build/` has been moved to
 its own repo, [`dev-machine`](https://github.com/coseguera/dev-machine), a
-platform-agnostic, flag-driven installer (flags for Copilot/Node, LazyVim Mason &
-Treesitter, local console via cage+foot, and an i3+browser desktop). This repo now
+platform-agnostic, flag-driven installer. This repo now
 consumes it as a **git submodule** mounted at `core-build/`; `provision.sh` inlines the
 submodule and invokes `install.sh` with no flags (full toolchain, no GUI -- identical to
 the validated runs above). See [ADR 0009](decisions/0009-core-build-in-dev-machine-repo.md).
