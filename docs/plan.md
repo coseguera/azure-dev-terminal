@@ -53,12 +53,13 @@ fix end-to-end on a fresh boot. Full toolchain verified on the live VM:
 literal PAM config.
 
 **Update -- core build extracted to `dev-machine`.** `core-build/` has been moved to
-its own repo, [`dev-machine`](https://github.com/coseguera/dev-machine), a
-platform-agnostic, flag-driven installer. This repo now
-consumes it as a **git submodule** mounted at `core-build/`; `provision.sh` inlines the
-submodule and invokes `install.sh` with no flags (full toolchain, no GUI -- identical to
-the validated runs above). See [ADR 0009](decisions/0009-core-build-in-dev-machine-repo.md).
-Clone with `--recurse-submodules`.
+its own public repo, [`dev-machine`](https://github.com/coseguera/dev-machine), a
+platform-agnostic, flag-driven installer. This repo now consumes it as a **plain local
+clone** (NOT a submodule) at `--dev-machine-dir` (default `./dev-machine`, gitignored);
+`provision.sh` offers to clone it on first run if missing, inlines whatever is on disk,
+and invokes `install.sh` with no flags (full toolchain, no GUI -- identical to the
+validated runs above). See [ADR 0010](decisions/0010-dev-machine-as-provision-time-clone.md)
+(supersedes the submodule mechanism of [ADR 0009](decisions/0009-core-build-in-dev-machine-repo.md)).
 
 **Next action:** project is feature-complete. Tear down the VM (billing). Any future
 work is incremental improvement: additional OS validation for `feas-crossplatform`

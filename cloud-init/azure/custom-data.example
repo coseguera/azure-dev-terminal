@@ -3,8 +3,8 @@
 # azure-dev-terminal -- Azure cloud-init overlay (--custom-data)
 # -----------------------------------------------------------------------------
 # THIN Azure/Entra overlay. This file does ONLY platform-specific work and then
-# runs the platform-agnostic core build (../../core-build). It deliberately does
-# NOT contain the toolchain/dotfiles logic -- that lives in core-build/install.sh
+# runs the platform-agnostic core build (the dev-machine repo). It deliberately does
+# NOT contain the toolchain/dotfiles logic -- that lives in dev-machine's install.sh
 # so it can be reused on other hosts (e.g. a Pi/laptop) via their own overlay.
 #
 # ACCOUNT MODEL: this VM is reached purely over Microsoft Entra ID SSH. On first
@@ -19,7 +19,7 @@
 # Placeholders (substituted by provision.sh):
 #   __ADMIN__         - the local admin username from `az vm create --admin-username`
 #                       (locked out of SSH/sudo at the end of this config)
-#   __COREBUILD_B64__ - base64 of the core-build submodule payload (its install.sh
+#   __COREBUILD_B64__ - base64 of the dev-machine core build payload (its install.sh
 #                       + files/ tree, excluding VCS metadata), inlined here so the
 #                       deployed custom-data is self-contained with no boot-time
 #                       repo dependency
@@ -64,8 +64,8 @@ write_files:
       Unattended-Upgrade::Automatic-Reboot "false";
 
   # -- Core build (inlined) ---------------------------------------------------
-  # The entire core-build/ tree, tar+gzip+base64'd by provision.sh. Extracted and
-  # run below. Keeps this overlay thin and the deployed file self-contained.
+  # The entire dev-machine core build tree, tar+gzip+base64'd by provision.sh.
+  # Extracted and run below. Keeps this overlay thin and the deployed file self-contained.
   - path: /var/lib/azure-dev-terminal/core-build.tgz
     permissions: '0600'
     encoding: b64

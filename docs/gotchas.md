@@ -6,8 +6,9 @@ Hard-won traps in provisioning and connecting to this VM. Each is generic.
 
 `az vm create` passes `custom-data` through a latin-1/ASCII-sensitive path: a single
 non-ASCII byte (em-dash, smart quote, accented char) aborts creation with a codec
-error. Because `provision.sh` **inlines the entire `core-build/` tree** into
+error. Because `provision.sh` **inlines the entire dev-machine core build tree** into
 `custom-data`, this applies to every file that gets inlined, not just the overlay.
+(`provision.sh` inlines the **dev-machine core build tree** from `--dev-machine-dir`.)
 
 - Keep all inlined content ASCII. Use `-` not the em/en dash, straight quotes only.
 - Verify before provisioning:

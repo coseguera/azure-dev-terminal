@@ -1,6 +1,8 @@
 # 0009 -- Core build lives in the `dev-machine` repo, consumed as a submodule
 
-Status: **Accepted**
+Status: **Superseded** by [ADR 0010](0010-dev-machine-as-provision-time-clone.md)
+(the submodule mechanism is replaced by a provision-time clone; the rest -- dev-machine
+as its own flag-driven, host-unaware repo -- still holds).
 
 Supersedes the "lives in this repo" part of [ADR 0004](0004-separable-core-build.md);
 the platform-agnostic principle there still holds.

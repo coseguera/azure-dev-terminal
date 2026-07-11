@@ -15,5 +15,6 @@ Consequences. They are written fresh for `azure-dev-terminal` and kept generic.
 | [0007](0007-clipboard-over-ssh-osc52.md) | Clipboard over SSH via OSC 52 |
 | [0008](0008-copilot-in-tmux-window.md) | Run the Copilot CLI in its own tmux window |
 | [0009](0009-core-build-in-dev-machine-repo.md) | Core build in the `dev-machine` repo, consumed as a submodule |
+| [0010](0010-dev-machine-as-provision-time-clone.md) | dev-machine consumed as a provision-time clone, not a submodule |
 
 Status values: **Accepted** (in effect), **Superseded** (replaced by a later ADR).
