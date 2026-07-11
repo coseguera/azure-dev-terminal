@@ -2,7 +2,7 @@
 
 The **thin Azure/Entra overlay**. `custom-data.example` is the committed template
 for the Azure `--custom-data` config. It does only platform-specific work and then
-runs the platform-agnostic core build (`../../core-build`); it does **not** contain
+runs the platform-agnostic core build (the local `dev-machine` clone); it does **not** contain
 the toolchain/dotfiles logic.
 
 ## What the overlay does
@@ -25,7 +25,7 @@ account. The admin account from `az vm create` is locked down at the end.
 | Placeholder | Substituted with |
 |---|---|
 | `__ADMIN__` | the `az vm create --admin-username` value (locked out at the end) |
-| `__COREBUILD_B64__` | `tar czf - -C core-build . \| base64 -w0` -- the whole core-build tree, inlined so the deployed config is self-contained (no boot-time repo dependency) |
+| `__COREBUILD_B64__` | `tar czf - -C <dev-machine-dir> . \| base64 -w0` -- the whole dev-machine core build tree, inlined so the deployed config is self-contained (no boot-time repo dependency). `<dev-machine-dir>` defaults to `./dev-machine` (a local clone, not a submodule). |
 
 ## Constraints
 
@@ -40,7 +40,7 @@ account. The admin account from `az vm create` is locked down at the end.
 LC_ALL=C grep -nP '[^\x00-\x7F]' custom-data.example   # must print nothing
 
 # schema-check a rendered copy (real b64 + admin substituted):
-B64="$(tar czf - -C ../../core-build . | base64 -w0)"
+B64="$(tar czf - -C ../../dev-machine . | base64 -w0)"
 python3 - "$B64" <<'PY'
 import sys
 t=open('custom-data.example').read()

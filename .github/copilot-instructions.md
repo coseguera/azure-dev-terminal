@@ -6,16 +6,17 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
 
 ## Architecture in one screen
 
-- **`core-build/`** -- a **git submodule** of the `dev-machine` repo: the
-  platform-agnostic, flag-driven installer (`install.sh` + `files/`). Azure-
-  unaware; installs the toolchain and stages dotfiles into `--target-dir` (default
+- **`dev-machine/` (local clone, gitignored)** -- the platform-agnostic, flag-driven
+  installer (`install.sh` + `files/`) from the separate public `dev-machine` repo.
+  Azure-unaware; installs the toolchain and stages dotfiles into `--target-dir` (default
   `/etc/skel`). Reusable on any Debian/Ubuntu host. Azure invokes it with no flags
-  (full toolchain, no GUI). Run `git submodule update --init` after cloning.
-  (ADR 0004, ADR 0009)
+  (full toolchain, no GUI). NOT a submodule: `provision.sh --dev-machine-dir` points at
+  a local clone (default `./dev-machine`) and offers to `git clone` it if missing; it is
+  never auto-pulled, so local edits/branches are honored. (ADR 0004, ADR 0010)
 - **`cloud-init/azure/custom-data.example`** -- thin Azure overlay. Inlines the whole
-  `core-build/` tree (base64) and invokes `install.sh`, then adds Azure-only steps.
-- **`provision.sh`** -- assembly + access layer: renders `custom-data` (inlines
-  core-build, injects admin), ASCII-guards it, then creates RG, default-deny NSG,
+  dev-machine core build tree (base64) and invokes `install.sh`, then adds Azure-only steps.
+- **`provision.sh`** -- assembly + access layer: renders `custom-data` (inlines the
+  dev-machine tree, injects admin), ASCII-guards it, then creates RG, default-deny NSG,
   TrustedLaunch VM, managed identity, AAD SSH extension, RBAC, Defender, JIT policy.
 - **`lib/jit.{sh,ps1}`** -- shared JIT/CIDR logic used by both helpers. **Put shared
   access logic here**, not in the thin wrappers.
@@ -46,7 +47,7 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
 - bash: `set -euo pipefail`; PowerShell: `Set-StrictMode` + `$ErrorActionPreference`.
 - PowerShell: never name a parameter `$Profile` (it shadows the automatic `$PROFILE`);
   use `$NetworkProfile`.
-- `core-build/` stays Azure-unaware -- no Entra/JIT/cloud-init knowledge leaks into it.
+- The dev-machine core build stays Azure-unaware -- no Entra/JIT/cloud-init knowledge leaks into it.
 - New durable design choices get an ADR in `docs/decisions/`.
 
 See `docs/gotchas.md` for the specific traps (apt lock race, multi-range NAT, ASCII, etc.).

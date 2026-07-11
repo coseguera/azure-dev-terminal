@@ -11,6 +11,10 @@ overlays/*.local
 cloud-init/azure/custom-data
 !cloud-init/azure/custom-data.example
 
+# dev-machine core build: a plain local clone (not a submodule), cloned on demand
+# by provision.sh (default ./dev-machine) and inlined into custom-data. Never committed.
+/dev-machine/
+
 # Azure deploy outputs / connection details (may hold IPs, resource ids)
 connect.env
 *.connect.local
