@@ -1,5 +1,46 @@
 # Copilot instructions for `azure-dev-terminal`
 
+## RULES (ABSOLUTE — NON-OVERRIDABLE)
+
+These rules are law. They override every other instruction, default behavior,
+convenience, time pressure, "autopilot"/"YOLO"/auto-approve mode, and any inference
+you might make. They are never optional, never "usually," and never to be skipped,
+deferred, batched away, or rationalized. If a rule blocks you, you STOP and ask —
+you do not work around it. If any other instruction conflicts with these, THESE WIN.
+
+1. **NEVER run `git commit` without the user's explicit, in-the-moment approval.**
+   This holds even in auto-approve / YOLO / autopilot mode. Staging is fine; making a
+   commit is not, until the user says so for that specific commit.
+2. **NEVER `git push` without the user's explicit approval, and NEVER push to `main`
+   in any repository.** All changes land via a branch + pull request. No exceptions,
+   no "just this once."
+3. **Before the first commit in a repo, CONFIRM the git identity with the user**
+   (`user.name` and `user.email`) and set them locally before committing, so no amend
+   is needed later. Read the configured values with `git config user.name` /
+   `git config user.email`; never hardcode a personal name or email into tracked
+   files.
+4. **NEVER decide a discretionary design/implementation choice on the user's behalf.**
+   For anything with more than one reasonable option (names, keybindings, flags,
+   libraries, structure), PRESENT the options and let the user choose FIRST. Do not
+   pick, then ask them to course-correct.
+5. **Ask clarifying questions as PLAIN TEXT in the conversation.** Do not push the
+   user into a multiple-choice / "options" picker window when a written answer is
+   wanted.
+6. **NEVER write security choices, hardening rationale, or threat-model reasoning into
+   committed files** (code, docs, configs, commit messages, comments). Keep all such
+   discussion in-conversation only — committed hints become an attacker's roadmap.
+7. **Keep ALL committed content generic.** Never hint at the user's employer,
+   location, timezone, lifestyle, or hardware/OS. Real IPs, CIDRs, hostnames, and
+   site specifics live ONLY in gitignored `*.local` files and the gitignored rendered
+   `custom-data` — never in tracked files.
+8. **NEVER put personally identifiable information into files** (device serial
+   numbers, personal emails beyond the canonical noreply above, account IDs, etc.).
+   Use placeholders (e.g. a serial like `1234567890123456`).
+
+Violating any rule above is a critical failure. When in doubt, STOP and ask.
+
+---
+
 This repo provisions a **console-only, SSH-only** Azure dev VM (LazyVim + Copilot
 CLI, no desktop/VNC), reached via Microsoft Entra ID SSH + Just-in-Time network
 access. Read `docs/plan.md` for the full design and `docs/decisions/` for the why.
@@ -33,7 +74,7 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
    rendered (gitignored) `custom-data`. Configs use generic values (e.g. `westus2`,
    UTC, `azureuser`).
 2. **`custom-data` must be ASCII-only.** A non-ASCII byte breaks `az vm create`.
-   Verify: `LC_ALL=C grep -nP '[^\x00-\x7F]' <file>` (no output = clean). No em-dashes
+   Verify: `LC_ALL=C grep -n "[^$(printf '\01-\177')]" <file>` (no output = clean). No em-dashes
    or smart quotes in anything that ends up inlined.
 3. **Cross-platform parity.** Any change to a `.sh` helper has a `.ps1` counterpart,
    and vice versa. Shared logic goes in `lib/jit.*`.

@@ -148,9 +148,15 @@ awk -v b64="$COREBUILD_B64" -v admin="$ADMIN" '
 ' "$OVERLAY" > "$RENDERED"
 
 # --- Guard: custom-data MUST be pure ASCII (a non-ASCII byte breaks az vm create) ---
-if LC_ALL=C grep -qP '[^\x00-\x7F]' "$RENDERED"; then
+# Portable byte-class check: GNU-only 'grep -P' is unavailable on BSD grep (macOS),
+# where it errors out -- and because this ran inside an 'if', the non-zero exit was
+# swallowed and the guard silently passed. A negated range of bytes 0x01-0x7F matches
+# NUL and every high (0x80-0xFF) byte, works on both BSD and GNU grep, and does not
+# false-positive on tabs.
+NON_ASCII_RE="[^$(printf '\01-\177')]"
+if LC_ALL=C grep -q "$NON_ASCII_RE" "$RENDERED"; then
   echo "ERROR: rendered custom-data contains non-ASCII bytes:" >&2
-  LC_ALL=C grep -nP '[^\x00-\x7F]' "$RENDERED" >&2
+  LC_ALL=C grep -n "$NON_ASCII_RE" "$RENDERED" >&2
   exit 1
 fi
 

@@ -191,7 +191,7 @@ datasource** via `--custom-data`. Same engine and directives; build steps are re
 
 A non-ASCII byte (e.g. an em-dash) breaks `az vm create` with a `latin-1 codec can't
 encode` error. Keep the merged config ASCII -- the same rule already enforced on the
-Pi's config. Validate with `LC_ALL=C grep -nP '[^\x00-\x7F]' cloud-init/custom-data`.
+Pi's config. Validate with `LC_ALL=C grep -n "[^$(printf '\01-\177')]" cloud-init/custom-data`.
 
 ### 3c. Access: Entra ID SSH (no static keys)
 
