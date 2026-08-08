@@ -35,6 +35,10 @@ brew install --cask font-jetbrains-mono-nerd-font
   terminals do; the stock Terminal.app renders truecolor but does **not** support
   OSC 52). Set the terminal font to the Nerd Font you installed.
 - Connect with `./connect.sh` (see below).
+- If connecting fails with `No module named 'rpds.rpds'`, the CLI's `ssh`/`jsonschema`
+  dependencies are broken; reinstall the extension
+  (`az extension remove -n ssh && az extension add -n ssh`). See
+  [Gotchas](gotchas.md#az-ssh-no-module-named-rpdsrpds-macos).
 
 ## Linux
 

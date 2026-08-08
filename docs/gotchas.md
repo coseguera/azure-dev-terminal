@@ -67,6 +67,29 @@ you're on before assuming a provisioning bug.
 Naming a parameter `$Profile` silently shadows it. Use `$NetworkProfile` for the
 network-profile parameter in the `.ps1` helpers.
 
+## az ssh: "No module named 'rpds.rpds'" (macOS)
+
+`connect.sh` (and `sync.sh`) fail at the "Opening Entra ID SSH session ..." step with
+`No module named 'rpds.rpds'`. The `az ssh vm` command loads `jsonschema`, whose native
+`rpds-py` dependency is broken in the Azure CLI's bundled Python -- typically after a
+Python/CLI upgrade or an x86/arm64 wheel mismatch. The same helper works from a client
+with a healthy install (e.g. Linux), so it looks like a per-machine "it works there but
+not here" failure rather than a repo bug.
+
+- Primary fix: force a clean reinstall of the extension and its deps:
+  ```sh
+  az extension remove -n ssh
+  az extension add -n ssh
+  ```
+- Fallback if it persists: reinstall `rpds-py` into the CLI's **own** interpreter (Homebrew
+  bundles its own Python, so system `pip` is the wrong one), or reinstall the CLI:
+  ```sh
+  "$(brew --prefix azure-cli)/libexec/bin/python" -m pip install --force-reinstall rpds-py
+  # or, nuclear: brew uninstall azure-cli && brew install azure-cli && az extension add -n ssh
+  ```
+- Symptom is a Python import traceback at session open, not a JIT/network timeout -- if
+  JIT reported success and the error is an import error, it is this, not access.
+
 ## az CLI surface drift
 
 Flags and output shapes vary between `az` versions. Before relying on a flag
