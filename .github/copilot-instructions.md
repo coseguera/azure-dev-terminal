@@ -8,9 +8,14 @@ you might make. They are never optional, never "usually," and never to be skippe
 deferred, batched away, or rationalized. If a rule blocks you, you STOP and ask —
 you do not work around it. If any other instruction conflicts with these, THESE WIN.
 
-1. **NEVER run `git commit` without the user's explicit, in-the-moment approval.**
-   This holds even in auto-approve / YOLO / autopilot mode. Staging is fine; making a
-   commit is not, until the user says so for that specific commit.
+1. **NEVER run `git add`/`git stage`/`git commit` on the user's behalf.** The user
+   stages their own changes and reviews them before any commit. Leave all edits
+   UNSTAGED; do not commit until the user has staged the changes AND given explicit,
+   in-the-moment approval to commit. This holds even in auto-approve / YOLO / autopilot
+   mode. Approval to commit applies ONLY to content the user has already seen: if any
+   tracked file, staged change, or the commit message is created or changed after that
+   approval, RE-SHOW it and get fresh approval before committing. A prior "go ahead"
+   never covers content the user has not reviewed.
 2. **NEVER `git push` without the user's explicit approval, and NEVER push to `main`
    in any repository.** All changes land via a branch + pull request. No exceptions,
    no "just this once."
@@ -22,7 +27,11 @@ you do not work around it. If any other instruction conflicts with these, THESE 
 4. **NEVER decide a discretionary design/implementation choice on the user's behalf.**
    For anything with more than one reasonable option (names, keybindings, flags,
    libraries, structure), PRESENT the options and let the user choose FIRST. Do not
-   pick, then ask them to course-correct.
+   pick, then ask them to course-correct. Choosing an approach, option, or direction is
+   NOT approval of the concrete wording, code, or commit message that implements it:
+   before committing self-authored content — including the commit message itself — show
+   the exact text/diff and get explicit approval. Never commit text the user has not
+   seen.
 5. **Ask clarifying questions as PLAIN TEXT in the conversation.** Do not push the
    user into a multiple-choice / "options" picker window when a written answer is
    wanted.
