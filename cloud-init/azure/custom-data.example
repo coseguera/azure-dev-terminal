@@ -26,7 +26,7 @@
 #
 # CONSTRAINTS:
 #   - PURE ASCII ONLY. A single non-ASCII byte breaks `az vm create`
-#     ("latin-1 codec can't encode"). Verify: LC_ALL=C grep -nP '[^\x00-\x7F]' <file>
+#     ("latin-1 codec can't encode"). Verify: LC_ALL=C grep -n "[^$(printf '\01-\177')]" <file>
 #   - Idempotent / re-run safe where practical. "Reset" = delete + recreate.
 #   - Glyphs and theme render in the CLIENT terminal; the VM installs no fonts.
 # =============================================================================

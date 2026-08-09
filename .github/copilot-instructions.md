@@ -33,7 +33,7 @@ access. Read `docs/plan.md` for the full design and `docs/decisions/` for the wh
    rendered (gitignored) `custom-data`. Configs use generic values (e.g. `westus2`,
    UTC, `azureuser`).
 2. **`custom-data` must be ASCII-only.** A non-ASCII byte breaks `az vm create`.
-   Verify: `LC_ALL=C grep -nP '[^\x00-\x7F]' <file>` (no output = clean). No em-dashes
+   Verify: `LC_ALL=C grep -n "[^$(printf '\01-\177')]" <file>` (no output = clean). No em-dashes
    or smart quotes in anything that ends up inlined.
 3. **Cross-platform parity.** Any change to a `.sh` helper has a `.ps1` counterpart,
    and vice versa. Shared logic goes in `lib/jit.*`.

@@ -13,7 +13,7 @@ error. Because `provision.sh` **inlines the entire dev-machine core build tree**
 - Keep all inlined content ASCII. Use `-` not the em/en dash, straight quotes only.
 - Verify before provisioning:
   ```sh
-  LC_ALL=C grep -nP '[^\x00-\x7F]' <rendered-custom-data>   # any output = a bad byte
+  LC_ALL=C grep -n "[^$(printf '\01-\177')]" <rendered-custom-data>   # any output = a bad byte
   ```
 
 ## apt/dpkg lock race on first boot

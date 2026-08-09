@@ -30,14 +30,14 @@ account. The admin account from `az vm create` is locked down at the end.
 ## Constraints
 
 - **Pure ASCII only.** A non-ASCII byte breaks `az vm create`. Verify:
-  `LC_ALL=C grep -nP '[^\x00-\x7F]' custom-data.example`
+  `LC_ALL=C grep -n "[^$(printf '\01-\177')]" custom-data.example`
 - **Idempotent** where practical; "reset" = delete + recreate the VM.
 - The VM installs **no fonts** -- glyphs/theme render in the client terminal.
 
 ## Validate locally
 
 ```sh
-LC_ALL=C grep -nP '[^\x00-\x7F]' custom-data.example   # must print nothing
+LC_ALL=C grep -n "[^$(printf '\01-\177')]" custom-data.example   # must print nothing
 
 # schema-check a rendered copy (real b64 + admin substituted):
 B64="$(tar czf - -C ../../dev-machine . | base64 -w0)"
