@@ -54,6 +54,31 @@ connection times out.
 - Symptom: SSH times out *after* JIT reports success. Re-check your egress address vs
   what JIT allowed.
 
+### Debugging it by hand
+
+Three commands cover it (`RG`/`NSG` as in your VM config; the NSG is `<vm>-nsg`):
+
+```sh
+# 1. What is my egress address, and does it rotate? Repeat over a few minutes:
+#    more than one answer = NAT pool, so a /32 will never hold.
+for i in 1 2 3; do curl -s4 https://api.ipify.org; echo; sleep 5; done
+
+# 2. What does the NSG allow right now? JIT writes one Allow rule per request.
+az network nsg rule list -g "$RG" --nsg-name "$NSG" \
+  --query "sort_by([?direction=='Inbound'].{prio:priority,name:name,access:access,port:to_string(destinationPortRange||destinationPortRanges),src:to_string(sourceAddressPrefix||sourceAddressPrefixes)}, &prio)" \
+  -o table
+
+# 3. Drop a stale Allow rule (name from step 2). Failed attempts leave one each.
+az network nsg rule delete -g "$RG" --nsg-name "$NSG" -n "<rule-name>"
+```
+
+If your address from step 1 is not inside a `src` from step 2, that mismatch is the
+timeout. Delete only the `Allow` rules -- the JIT `Deny` rule is what keeps port 22
+closed by default. Rules also expire on their own at the end of the JIT window.
+
+Control test before widening ranges: `nc -vz -G 5 github.com 22`. If that fails, the
+network blocks outbound 22 and no source range will help.
+
 ## Source IP changes between networks
 
 Your public IP changes when you switch networks. A profile built for one network
