@@ -146,6 +146,31 @@ nvim to return to your local shell.
 
 ---
 
+## Passing extra ssh options (port forwarding, etc.)
+
+Anything after a bare `--` is handed verbatim to the ssh client, so any ssh option
+works: local/remote/dynamic forwarding (`-L`, `-R`, `-D`), `-o` settings, and so on.
+
+```sh
+# macOS / Linux
+./connect.sh -- -L 8765:127.0.0.1:8765          # local port 8765 -> VM's 127.0.0.1:8765
+./connect.sh -p nat -- -L 8765:127.0.0.1:8765   # combine with a network profile
+./connect.sh --dev dev/proj -- -L 8765:127.0.0.1:8765  # and with dev mode
+
+# Windows (PowerShell)
+./connect.ps1 -- -L 8765:127.0.0.1:8765
+./connect.ps1 -Dev -Path 'dev/proj' -- -L 8765:127.0.0.1:8765
+```
+
+The forwarded port is a **local** listener on your client; only port 22 is ever opened
+on the VM's network, and only for the Just-in-Time window. The helper does not validate
+these options -- ssh reports its own errors.
+
+> `--` must come **last**: every remaining token is forwarded, so put `-p` / `--dev` /
+> `-Dev` before it.
+
+---
+
 ## Syncing files
 
 `sync.sh` / `sync.ps1` do a one-way `rsync` of a **file or directory**, scp-style
