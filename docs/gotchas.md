@@ -92,6 +92,23 @@ you're on before assuming a provisioning bug.
 Naming a parameter `$Profile` silently shadows it. Use `$NetworkProfile` for the
 network-profile parameter in the `.ps1` helpers.
 
+## PowerShell swallows pass-through ssh options
+
+`connect.ps1` collects everything after `--` into `$SshArgs` via
+`ValueFromRemainingArguments`. That alone is not enough: PowerShell first binds
+unmatched tokens to the *positional* parameters, so `-- -L 8765:127.0.0.1:8765`
+lands `-L` in `$NetworkProfile` and the forward spec in the next positional slot,
+and the forwarding silently disappears from the `az` command line.
+
+The fix is `[Parameter(Position = 0, ValueFromRemainingArguments = $true)]` on
+`$SshArgs`, which gives it first claim on all positional input. Side effect: the
+other parameters become effectively named-only, which is how they are documented.
+The bash helper has no such trap -- `--` in its own arg loop stops parsing.
+
+When changing either helper, dry-run all four shapes (no args, `-- <ssh args>`,
+dev mode, dev mode + `-- <ssh args>`) against a fake `az` that echoes its argv, and
+confirm the remote command stays **last**.
+
 ## az ssh: "No module named 'rpds.rpds'" (macOS)
 
 `connect.sh` (and `sync.sh`) fail at the "Opening Entra ID SSH session ..." step with
